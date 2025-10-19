@@ -10,6 +10,19 @@ export default function TestLanguageSwitchingPage() {
   const t = useTranslation();
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // Helper function to safely translate language names
+  const translateLanguageName = (name: string): string => {
+    const key = name.toLowerCase();
+    try {
+      const translation = t(key as any);
+      // If translation returns the same key, it means the translation doesn't exist
+      return translation !== key ? translation : name;
+    } catch {
+      // Fallback to original name if translation fails
+      return name;
+    }
+  };
+
   const handleLanguageChange = (language: any) => {
     console.log('Changing language to:', language);
     setCurrentLanguage(language);
@@ -69,7 +82,7 @@ export default function TestLanguageSwitchingPage() {
               >
                 <div className="text-3xl mb-3">{lang.flag}</div>
                 <div className="text-sm font-medium text-white mb-1">
-                  {t(lang.name.toLowerCase() as string) || lang.name}
+                  {translateLanguageName(lang.name)}
                 </div>
                 <div className="text-xs text-white/70">{lang.native}</div>
                 {currentLanguage.code === lang.code && (
