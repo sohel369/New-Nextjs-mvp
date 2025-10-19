@@ -1,0 +1,415 @@
+/* Responsive Tabs Styles */
+/* Additional CSS for better mobile support and scrollbar hiding */
+
+/* Hide scrollbars but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Safari and Chrome */
+}
+
+/* Safe area support for mobile devices */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Touch-friendly tap targets */
+@media (max-width: 768px) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Responsive text sizing */
+@media (max-width: 640px) {
+  .responsive-text-sm {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  
+  .responsive-text-base {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  
+  .responsive-text-lg {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+}
+
+/* Smooth scrolling for tab containers */
+.tab-container {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Focus styles for accessibility */
+.tab-button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Animation for tab transitions */
+.tab-content {
+  transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.tab-content-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.tab-content-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Mobile-first responsive breakpoints */
+@media (max-width: 480px) {
+  .mobile-stack {
+    flex-direction: column;
+  }
+  
+  .mobile-full-width {
+    width: 100%;
+  }
+  
+  .mobile-text-center {
+    text-align: center;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .tablet-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 769px) {
+  .desktop-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+  
+  .desktop-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .tab-button {
+    border: 2px solid currentColor;
+  }
+  
+  .tab-button.active {
+    background-color: #000;
+    color: #fff;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .tab-container,
+  .tab-content,
+  .tab-button {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* Dark mode optimizations */
+@media (prefers-color-scheme: dark) {
+  .tab-button {
+    color-scheme: dark;
+  }
+}
+
+/* Print styles */
+@media print {
+  .tab-navigation {
+    display: none;
+  }
+  
+  .tab-content {
+    display: block !important;
+  }
+}
+
+/* Dashboard Responsive Styles */
+.dashboard-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-header {
+  flex-shrink: 0;
+}
+
+.dashboard-main {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.dashboard-nav {
+  flex-shrink: 0;
+}
+
+/* Responsive text scaling */
+@media (max-width: 480px) {
+  .responsive-text-xs {
+    font-size: 0.625rem;
+    line-height: 0.875rem;
+  }
+  
+  .responsive-text-sm {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  
+  .responsive-text-base {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  
+  .responsive-text-lg {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+  
+  .responsive-text-xl {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+  }
+  
+  .responsive-text-2xl {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+  
+  .responsive-text-3xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+}
+
+/* Responsive spacing */
+@media (max-width: 640px) {
+  .responsive-p-2 {
+    padding: 0.375rem;
+  }
+  
+  .responsive-p-4 {
+    padding: 0.75rem;
+  }
+  
+  .responsive-p-6 {
+    padding: 1rem;
+  }
+  
+  .responsive-p-8 {
+    padding: 1.25rem;
+  }
+  
+  .responsive-space-y-4 > * + * {
+    margin-top: 0.75rem;
+  }
+  
+  .responsive-space-y-6 > * + * {
+    margin-top: 1rem;
+  }
+}
+
+/* Responsive grid adjustments */
+@media (max-width: 480px) {
+  .responsive-grid-cols-1 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  .responsive-grid-cols-2 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 481px) and (max-width: 640px) {
+  .responsive-grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .touch-spacing {
+    padding: 0.75rem;
+  }
+  
+  .touch-text {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (orientation: landscape) and (max-height: 500px) {
+  .landscape-compact {
+    padding: 0.5rem;
+  }
+  
+  .landscape-text-sm {
+    font-size: 0.75rem;
+  }
+  
+  .landscape-hide {
+    display: none;
+  }
+}
+
+/* RTL (Right-to-Left) Support */
+[dir="rtl"] .space-x-reverse > * + * {
+  margin-right: 0.5rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .space-x-reverse > * + * {
+  margin-right: 0.75rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .space-x-reverse > * + * {
+  margin-right: 1rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .space-x-reverse > * + * {
+  margin-right: 1.5rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .space-x-reverse > * + * {
+  margin-right: 2rem;
+  margin-left: 0;
+}
+
+/* RTL Flexbox adjustments */
+[dir="rtl"] .flex-row-reverse {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .text-right {
+  text-align: right;
+}
+
+[dir="rtl"] .text-left {
+  text-align: left;
+}
+
+/* RTL Transform adjustments */
+[dir="rtl"] .group-hover\:translate-x-1:hover {
+  transform: translateX(-0.25rem);
+}
+
+[dir="rtl"] .group-hover\:-translate-x-1:hover {
+  transform: translateX(0.25rem);
+}
+
+/* RTL Responsive spacing */
+@media (max-width: 640px) {
+  [dir="rtl"] .responsive-p-2 {
+    padding: 0.375rem;
+  }
+  
+  [dir="rtl"] .responsive-p-4 {
+    padding: 0.75rem;
+  }
+  
+  [dir="rtl"] .responsive-p-6 {
+    padding: 1rem;
+  }
+  
+  [dir="rtl"] .responsive-p-8 {
+    padding: 1.25rem;
+  }
+}
+
+/* RTL Touch targets */
+@media (hover: none) and (pointer: coarse) {
+  [dir="rtl"] .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  [dir="rtl"] .touch-spacing {
+    padding: 0.75rem;
+  }
+  
+  [dir="rtl"] .touch-text {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+}
+
+/* RTL Bottom navigation */
+[dir="rtl"] .bottom-nav {
+  direction: rtl;
+}
+
+[dir="rtl"] .bottom-nav .nav-item {
+  text-align: center;
+}
+
+/* RTL Grid adjustments */
+[dir="rtl"] .grid {
+  direction: rtl;
+}
+
+[dir="rtl"] .grid > * {
+  direction: ltr;
+}
+
+/* RTL Icon adjustments */
+[dir="rtl"] .icon-flip {
+  transform: scaleX(-1);
+}
+
+/* RTL Animation adjustments */
+[dir="rtl"] .slide-in-right {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+[dir="rtl"] .slide-in-left {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}

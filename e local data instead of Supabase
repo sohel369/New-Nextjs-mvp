@@ -1,0 +1,89 @@
+[33me2d77e7[m[33m ([m[1;36mHEAD -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m update dashboard, LanguageLessons and test-audio pages
+app/dashboard/page.tsx
+app/test-audio/page.tsx
+components/LanguageLessons.tsx
+components/TTSReader.tsx
+h origin master
+[33m60070aa[m update
+app/dashboard/page.tsx
+app/globals.css
+app/page.tsx
+app/test-audio/page.tsx
+components/LanguageLessons.tsx
+components/Layout.tsx
+components/QuizScreen.tsx
+contexts/LanguageContext.tsx
+lib/translations.ts
+[33m15a2dc7[m error solve
+app/layout.tsx
+app/page.tsx
+contexts/LanguageContext.tsx
+[33m377fc8c[m error
+app/ai-features/page.tsx
+components/AIPronunciationCoach.tsx
+components/QuizConfetti.tsx
+[33m4b6b27c[m vercel error fix
+app/ai-features/page.tsx
+[33me51ae5c[m res complete
+app/ai-coach/page.tsx
+app/dashboard/page.tsx
+app/lessons/page.tsx
+app/profile/page.tsx
+app/quiz/page.tsx
+components/AICoach.tsx
+components/AICoachLanguageSelector.tsx
+components/BottomNavigation.tsx
+components/DashboardNotificationPopup.tsx
+components/LanguageLessons.tsx
+components/NotificationBell.tsx
+components/NotificationPopup.tsx
+components/QuizHistory.tsx
+components/QuizScreen.tsx
+components/SettingsModal.tsx
+[33md971d61[m res update
+RESPONSIVE_DASHBOARD_GUIDE.md
+RESPONSIVE_TABS_GUIDE.md
+RTL_RESPONSIVE_GUIDE.md
+app/dashboard/page.tsx
+app/language-learning/page.tsx
+app/profile/page.tsx
+components/BottomNavigation.tsx
+components/ResponsiveTabs.tsx
+components/SettingsModal.tsx
+styles/responsive-tabs.css
+[33me009368[m all update
+QUIZ_SYSTEM_README.md
+app/lessons-basic/page.tsx
+app/lessons/[lessonId]/page.tsx
+app/quiz-demo/page.tsx
+app/quiz-system/page.tsx
+components/AIPronunciationCoach.tsx
+components/LanguageLearningQuiz.tsx
+components/QuizConfetti.tsx
+data/languageData.ts
+data/quizSystemData.ts
+data/vocabularyData.ts
+lib/adaptiveDifficulty.ts
+lib/audioService.ts
+lib/quizAudioService.ts
+lib/quizProgressManager.ts
+public/manifest.json
+public/offline.html
+public/sw.js
+[33mf7b62b0[m lesson
+app/profile/page.tsx
+app/quiz/page.tsx
+components/EnhancedQuiz.tsx
+components/QuizHistory.tsx
+components/QuizLoadingSpinner.tsx
+components/QuizResults.tsx
+components/QuizScreen.tsx
+components/QuizScreenEnhanced.tsx
+data/languageData.ts
+database/quiz-history-schema.sql
+lib/quizDataLoader.ts
+lib/quizHistory.ts
+[33m2586634[m  lan select update
+app/auth/callback/route.ts
+app/auth/signup/page.tsx
+app/language-selection/page.tsx

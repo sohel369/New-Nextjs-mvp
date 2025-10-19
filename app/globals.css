@@ -1,0 +1,241 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global Theme and Font Size Variables */
+:root {
+  --base-font-size: 16px;
+  --font-size: medium;
+  --theme-mode: dark;
+  --current-theme: dark;
+  
+  /* Light theme colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  --accent-color: #3b82f6;
+  
+  /* Dark theme colors (default) */
+  --bg-primary-dark: #0f172a;
+  --bg-secondary-dark: #1e293b;
+  --text-primary-dark: #f1f5f9;
+  --text-secondary-dark: #94a3b8;
+  --border-color-dark: #334155;
+  --accent-color-dark: #60a5fa;
+}
+
+/* Theme Classes */
+.light {
+  color-scheme: light;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  --accent-color: #3b82f6;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border-color: #334155;
+  --accent-color: #60a5fa;
+}
+
+.system {
+  color-scheme: light dark;
+}
+
+/* Font Size Classes */
+.font-small {
+  font-size: 14px;
+  --base-font-size: 14px;
+}
+
+.font-medium {
+  font-size: 16px;
+  --base-font-size: 16px;
+}
+
+.font-large {
+  font-size: 18px;
+  --base-font-size: 18px;
+}
+
+.font-xl {
+  font-size: 20px;
+  --base-font-size: 20px;
+}
+
+/* Global body styles for theme application */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Apply theme colors to common elements */
+.bg-slate-900 {
+  background-color: var(--bg-primary) !important;
+}
+
+.text-white {
+  color: var(--text-primary) !important;
+}
+
+.text-white\/70 {
+  color: var(--text-secondary) !important;
+}
+
+.border-slate-700 {
+  border-color: var(--border-color) !important;
+}
+
+.bg-slate-800 {
+  background-color: var(--bg-secondary) !important;
+}
+
+/* Arabic RTL Support */
+.arabic-layout {
+  direction: rtl;
+}
+
+.arabic-text {
+  direction: rtl;
+  text-align: right;
+  font-family: 'Noto Sans Arabic', 'Arial Unicode MS', 'Segoe UI', sans-serif;
+}
+
+/* Ensure dashboard is always visible */
+.dashboard-container {
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: flex !important;
+}
+
+.dashboard-container * {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* RTL support - minimal changes */
+[dir="rtl"] {
+  text-align: right;
+}
+
+[dir="rtl"] .dashboard-container {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Arabic text support */
+.arabic-text {
+  direction: rtl;
+  text-align: right;
+  font-family: 'Noto Sans Arabic', 'Arial Unicode MS', 'Segoe UI', sans-serif;
+}
+
+.arabic-text input,
+.arabic-text textarea {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Minimal RTL adjustments - only text direction */
+.arabic-text .text-left {
+  text-align: right;
+}
+
+.arabic-text .text-right {
+  text-align: left;
+}
+
+:root {
+  --background: #0f0f23;
+  --foreground: #ffffff;
+  --primary: #8b5cf6;
+  --secondary: #06b6d4;
+  --accent: #10b981;
+  --card: #1e1e3f;
+  --border: #374151;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--card);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7c3aed;
+}
+
+/* RTL support */
+[dir="rtl"] {
+  text-align: right;
+}
+
+[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
