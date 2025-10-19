@@ -99,9 +99,9 @@ const QuizConfetti: React.FC<ConfettiProps> = ({
   };
 
   // Update confetti animation
-  const updateConfetti = (confetti: ConfettiPiece[], deltaTime: number) => {
+  const updateConfetti = (confetti: ConfettiPiece[], deltaTime: number): ConfettiPiece[] => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) return confetti; // Return original confetti if canvas not available
 
     confetti.forEach(piece => {
       // Update position
