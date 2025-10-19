@@ -56,7 +56,7 @@ export class GoogleTTS {
       const response = await fetch(`${this.baseUrl}/voices?key=${this.apiKey}`);
       const data = await response.json();
       
-      return data.voices.filter((voice: any) => 
+      return data.voices.filter((voice: { languageCodes: string[] }) => 
         voice.languageCodes.includes(languageCode)
       );
     } catch (error) {
@@ -109,7 +109,7 @@ export class GoogleTTS {
           view[i] = audioData.charCodeAt(i);
         }
         
-        return audioBuffer as any;
+        return audioBuffer as AudioBuffer;
       }
       
       return null;
@@ -167,7 +167,8 @@ export class GoogleTTS {
     onError?: (error: Error) => void;
   }) {
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const audioContext = new AudioContextClass();
       const source = audioContext.createBufferSource();
       const gainNode = audioContext.createGain();
       
@@ -248,7 +249,7 @@ export class FallbackTTS {
 // TTS Factory
 export function createTTS(apiKey?: string) {
   if (apiKey) {
-    return new GoogleTTS(apiKey) as any;
+    return new GoogleTTS(apiKey);
   }
   return new FallbackTTS();
 }

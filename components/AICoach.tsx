@@ -127,7 +127,7 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
       return;
     }
 
-    const recognition = new (window as any).webkitSpeechRecognition();
+    const recognition = new (window as any).webkitSpeechRecognition(); // WebKit Speech Recognition API
     recognition.continuous = false;
     recognition.interimResults = false;
     

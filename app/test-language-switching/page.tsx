@@ -69,7 +69,7 @@ export default function TestLanguageSwitchingPage() {
               >
                 <div className="text-3xl mb-3">{lang.flag}</div>
                 <div className="text-sm font-medium text-white mb-1">
-                  {t(lang.name.toLowerCase() as any) || lang.name}
+                  {t(lang.name.toLowerCase() as string) || lang.name}
                 </div>
                 <div className="text-xs text-white/70">{lang.native}</div>
                 {currentLanguage.code === lang.code && (

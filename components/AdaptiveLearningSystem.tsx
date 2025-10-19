@@ -190,7 +190,7 @@ export default function AdaptiveLearningSystem({
     contentTypes.forEach((type, index) => {
       recommendations.push({
         id: `adaptive-${type}-${index}`,
-        type: type as any,
+        type: type as string,
         difficulty: Math.max(0.1, Math.min(1.0, 0.5 + difficultyAdjustment + (index * 0.1))),
         content: generateContentByType(type, language),
         estimatedTime: learningProfile?.pacePreference === 'fast' ? 5 : learningProfile?.pacePreference === 'slow' ? 15 : 10,

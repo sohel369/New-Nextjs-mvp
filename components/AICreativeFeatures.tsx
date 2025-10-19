@@ -190,10 +190,10 @@ export default function AICreativeFeatures({
     const template = contentTemplates[selectedType as keyof typeof contentTemplates];
     return {
       id: `ai-content-${Date.now()}`,
-      type: selectedType as any,
+      type: selectedType as string,
       title: template.title,
       content: template.content,
-      difficulty: customization.difficulty as any,
+      difficulty: customization.difficulty as string,
       language: language,
       tags: template.tags,
       aiGenerated: true,

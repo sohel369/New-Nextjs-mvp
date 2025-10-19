@@ -98,7 +98,7 @@ export default function TestSettingsPage() {
                   ].map(theme => (
                     <button
                       key={theme.value}
-                      onClick={() => updateSetting('theme', theme.value as any)}
+                      onClick={() => updateSetting('theme', theme.value as 'light' | 'dark' | 'system')}
                       className={`p-2 rounded-lg border transition-all ${
                         settings.theme === theme.value
                           ? 'border-purple-500 bg-purple-500/20 text-white'
@@ -123,7 +123,7 @@ export default function TestSettingsPage() {
                   ].map(size => (
                     <button
                       key={size.value}
-                      onClick={() => updateSetting('fontSize', size.value as any)}
+                      onClick={() => updateSetting('fontSize', size.value as 'small' | 'medium' | 'large' | 'xl')}
                       className={`p-2 rounded-lg border transition-all ${
                         settings.fontSize === size.value
                           ? 'border-purple-500 bg-purple-500/20 text-white'

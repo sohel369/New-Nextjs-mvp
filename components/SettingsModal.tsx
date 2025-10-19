@@ -117,7 +117,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
+                    onClick={() => setActiveTab(tab.id as 'general' | 'appearance' | 'notifications' | 'privacy' | 'account')}
                     className={`flex-shrink-0 flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm transition-colors ${
                       activeTab === tab.id
                         ? 'bg-blue-600 text-white'
@@ -140,7 +140,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
+                    onClick={() => setActiveTab(tab.id as 'general' | 'appearance' | 'notifications' | 'privacy' | 'account')}
                     className={`w-full flex items-center space-x-2 xl:space-x-3 px-3 xl:px-4 py-2 xl:py-3 rounded-lg text-left transition-colors ${
                       activeTab === tab.id
                         ? 'bg-blue-600 text-white'

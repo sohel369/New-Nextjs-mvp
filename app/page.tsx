@@ -433,7 +433,7 @@ export default function Home() {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-                {t('welcome')}, {(user as any)?.name || 'Learner'}! 👋
+                {t('welcome')}, {(user as { name?: string })?.name || 'Learner'}! 👋
               </h2>
               <p className="text-xl text-white/70 mb-8">
                 {t('readyToLearn')}

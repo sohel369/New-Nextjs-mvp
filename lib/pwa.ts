@@ -15,7 +15,7 @@ export const registerSW = () => {
 };
 
 export const installPWA = () => {
-  let deferredPrompt: any;
+  let deferredPrompt: any; // BeforeInstallPromptEvent type not available in all browsers
   
   window.addEventListener('beforeinstallprompt', (e) => {
     // Prevent Chrome 67 and earlier from automatically showing the prompt
@@ -30,7 +30,7 @@ export const installPWA = () => {
         // Show the install prompt
         deferredPrompt.prompt();
         // Wait for the user to respond to the prompt
-        deferredPrompt.userChoice.then((choiceResult: any) => {
+        deferredPrompt.userChoice.then((choiceResult: { outcome: string }) => {
           if (choiceResult.outcome === 'accepted') {
           console.log('User accepted the install prompt');
           } else {
@@ -50,7 +50,7 @@ export const checkOnlineStatus = () => {
 
 export const addToHomeScreen = () => {
   // For iOS devices
-  if ((window.navigator as any).standalone === false) {
+  if ((window.navigator as any).standalone === false) { // iOS Safari standalone mode
     // Show instructions for adding to home screen
     return true;
   }

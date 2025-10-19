@@ -401,7 +401,7 @@ const QuizScreen: React.FC<QuizScreenProps> = memo(({
           </div>
         ) : (
           <div className="space-y-3">
-            {currentQuestionObj.options?.map((option, index) => {
+            {currentQuestionObj.options?.map((option: string, index: number) => {
               const isArabic = /[\u0600-\u06FF]/.test(option);
               const lang = isArabic ? "arabic" : selectedLanguage;
 

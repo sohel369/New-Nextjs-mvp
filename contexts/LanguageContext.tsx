@@ -87,7 +87,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       console.warn(`No translations found for language: ${currentLanguage.code}`);
       return translations.en[key] || key;
     }
-    const translation = (currentTranslations as any)[key] || (translations.en as any)[key] || key;
+    const translation = (currentTranslations as Record<string, string>)[key] || (translations.en as Record<string, string>)[key] || key;
     console.log(`Translation: ${key} -> ${translation} (lang: ${currentLanguage.code})`);
     return translation;
   };

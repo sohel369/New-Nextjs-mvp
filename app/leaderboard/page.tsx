@@ -36,7 +36,7 @@ export default function LeaderboardPage() {
             ].map(type => (
               <button
                 key={type.value}
-                onClick={() => setLeaderboardType(type.value as any)}
+                onClick={() => setLeaderboardType(type.value as 'all' | 'weekly' | 'monthly')}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
                   leaderboardType === type.value
                     ? 'bg-purple-600 text-white shadow-lg'
