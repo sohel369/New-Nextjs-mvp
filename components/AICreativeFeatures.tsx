@@ -23,17 +23,30 @@ import {
   Zap
 } from 'lucide-react';
 
+// Define allowed content types
+type ContentType = 'story' | 'dialogue' | 'exercise' | 'game' | 'visual' | 'audio';
+type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
+type ContentLength = 'short' | 'medium' | 'long';
+type ContentStyle = 'conversational' | 'formal' | 'casual' | 'academic';
+
 interface AICreativeContent {
   id: string;
-  type: 'story' | 'dialogue' | 'exercise' | 'game' | 'visual' | 'audio';
+  type: ContentType;
   title: string;
-  content: any;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  content: any; // Flexible content type for different content structures
+  difficulty: DifficultyLevel;
   language: string;
   tags: string[];
   aiGenerated: boolean;
   userRating?: number;
   createdAt: Date;
+}
+
+interface CustomizationOptions {
+  difficulty: DifficultyLevel;
+  length: ContentLength;
+  style: ContentStyle;
+  topic: string;
 }
 
 interface AICreativeFeaturesProps {
@@ -48,9 +61,9 @@ export default function AICreativeFeatures({
   const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<AICreativeContent[]>([]);
-  const [selectedType, setSelectedType] = useState<string>('story');
-  const [prompt, setPrompt] = useState('');
-  const [customization, setCustomization] = useState({
+  const [selectedType, setSelectedType] = useState<ContentType>('story');
+  const [prompt, setPrompt] = useState<string>('');
+  const [customization, setCustomization] = useState<CustomizationOptions & { characters: string; setting: string }>({
     difficulty: 'intermediate',
     length: 'medium',
     style: 'conversational',
@@ -83,6 +96,12 @@ export default function AICreativeFeatures({
     }
   };
 
+  // Helper function to get safe type
+  const getSafeType = (): ContentType => {
+    const allowedTypes: ContentType[] = ['story', 'dialogue', 'exercise', 'game', 'visual', 'audio'];
+    return allowedTypes.includes(selectedType) ? selectedType : 'story';
+  };
+
   const generateContent = async () => {
     if (!prompt.trim()) return;
 
@@ -92,12 +111,13 @@ export default function AICreativeFeatures({
       const content = await simulateAIContentGeneration();
       
       // Save to database
+      const safeType = getSafeType();
       const { data, error } = await supabase
         .from('ai_generated_content')
         .insert({
           user_id: user?.id,
           language: language,
-          type: selectedType,
+          type: safeType,
           title: content.title,
           content: content.content,
           difficulty: customization.difficulty,
@@ -187,13 +207,22 @@ export default function AICreativeFeatures({
       }
     };
 
-    const template = contentTemplates[selectedType as keyof typeof contentTemplates];
+    // Define the allowed content types
+    const allowedTypes = ['story', 'dialogue', 'exercise', 'game', 'visual', 'audio'] as const;
+    type AllowedType = typeof allowedTypes[number];
+    
+    // Validate selectedType against allowed types and provide default
+    const safeType: AllowedType = allowedTypes.includes(selectedType as AllowedType) 
+      ? (selectedType as AllowedType) 
+      : 'story'; // Default fallback
+    
+    const template = contentTemplates[safeType as keyof typeof contentTemplates];
     return {
       id: `ai-content-${Date.now()}`,
-      type: selectedType as string,
+      type: safeType,
       title: template.title,
       content: template.content,
-      difficulty: customization.difficulty as string,
+      difficulty: customization.difficulty,
       language: language,
       tags: template.tags,
       aiGenerated: true,
@@ -201,7 +230,7 @@ export default function AICreativeFeatures({
     };
   };
 
-  const generateStoryContent = (language: string, customization: any): string => {
+  const generateStoryContent = (language: string, customization: CustomizationOptions): string => {
     const stories = {
       en: [
         "Once upon a time, in a land far away, there lived a curious student who loved to learn new languages...",
@@ -218,7 +247,7 @@ export default function AICreativeFeatures({
     return stories[language as keyof typeof stories]?.[Math.floor(Math.random() * 3)] || stories.en[0];
   };
 
-  const generateDialogueContent = (language: string, customization: any): Array<{speaker: string, text: string}> => {
+  const generateDialogueContent = (language: string, customization: CustomizationOptions): Array<{speaker: string, text: string}> => {
     const dialogues = {
       en: [
         { speaker: "Person A", text: "Hello! How are you today?" },
@@ -237,7 +266,7 @@ export default function AICreativeFeatures({
     return dialogues[language as keyof typeof dialogues] || dialogues.en;
   };
 
-  const generateExerciseInstructions = (language: string, customization: any): string => {
+  const generateExerciseInstructions = (language: string, customization: CustomizationOptions): string => {
     const instructions = {
       en: "Complete the following exercises to practice your language skills. Read each question carefully and choose the best answer.",
       ar: "أكمل التمارين التالية لممارسة مهاراتك اللغوية. اقرأ كل سؤال بعناية واختر الإجابة الأفضل."
@@ -246,7 +275,7 @@ export default function AICreativeFeatures({
     return instructions[language as keyof typeof instructions] || instructions.en;
   };
 
-  const generateExerciseQuestions = (language: string, customization: any): Array<{question: string, options: string[]}> => {
+  const generateExerciseQuestions = (language: string, customization: CustomizationOptions): Array<{question: string, options: string[]}> => {
     const questions = {
       en: [
         { question: "What is the correct way to say 'hello'?", options: ["Hola", "Hello", "Bonjour", "All correct"] },
@@ -261,11 +290,11 @@ export default function AICreativeFeatures({
     return questions[language as keyof typeof questions] || questions.en;
   };
 
-  const generateExerciseAnswers = (language: string, customization: any): string[] => {
+  const generateExerciseAnswers = (language: string, customization: CustomizationOptions): string[] => {
     return ["All correct", "All correct"]; // Simplified for demo
   };
 
-  const generateGameRules = (language: string, customization: any): string => {
+  const generateGameRules = (language: string, customization: CustomizationOptions): string => {
     const rules = {
       en: "Match the words with their correct translations. You have 60 seconds to complete as many matches as possible!",
       ar: "طابق الكلمات مع ترجماتها الصحيحة. لديك 60 ثانية لإكمال أكبر عدد ممكن من المطابقات!"
@@ -274,7 +303,7 @@ export default function AICreativeFeatures({
     return rules[language as keyof typeof rules] || rules.en;
   };
 
-  const generateGameWords = (language: string, customization: any): Array<{word: string, translation: string}> => {
+  const generateGameWords = (language: string, customization: CustomizationOptions): Array<{word: string, translation: string}> => {
     const words = {
       en: [
         { word: "Hello", translation: "مرحبا" },
@@ -291,7 +320,7 @@ export default function AICreativeFeatures({
     return words[language as keyof typeof words] || words.en;
   };
 
-  const generateVisualDescription = (language: string, customization: any): string => {
+  const generateVisualDescription = (language: string, customization: CustomizationOptions): string => {
     const descriptions = {
       en: "An interactive visual learning experience with colorful illustrations and engaging animations.",
       ar: "تجربة تعلم بصرية تفاعلية مع رسوم توضيحية ملونة ورسوم متحركة جذابة."
@@ -300,15 +329,15 @@ export default function AICreativeFeatures({
     return descriptions[language as keyof typeof descriptions] || descriptions.en;
   };
 
-  const generateVisualElements = (language: string, customization: any): string[] => {
+  const generateVisualElements = (language: string, customization: CustomizationOptions): string[] => {
     return ["Interactive buttons", "Colorful illustrations", "Animated characters", "Progress indicators"];
   };
 
-  const generateVisualInteractions = (language: string, customization: any): string[] => {
+  const generateVisualInteractions = (language: string, customization: CustomizationOptions): string[] => {
     return ["Click to learn", "Drag and drop", "Hover for hints", "Tap to continue"];
   };
 
-  const generateAudioScript = (language: string, customization: any): string => {
+  const generateAudioScript = (language: string, customization: CustomizationOptions): string => {
     const scripts = {
       en: "Welcome to your personalized audio lesson. Today we'll practice pronunciation and listening skills.",
       ar: "مرحباً بك في درسك الصوتي المخصص. اليوم سنمارس مهارات النطق والاستماع."
@@ -317,7 +346,7 @@ export default function AICreativeFeatures({
     return scripts[language as keyof typeof scripts] || scripts.en;
   };
 
-  const generatePronunciationGuide = (language: string, customization: any): string => {
+  const generatePronunciationGuide = (language: string, customization: CustomizationOptions): string => {
     const guides = {
       en: "Focus on the stressed syllables and practice the vowel sounds clearly.",
       ar: "ركز على المقاطع المشددة ومارس أصوات الحروف المتحركة بوضوح."
@@ -326,7 +355,7 @@ export default function AICreativeFeatures({
     return guides[language as keyof typeof guides] || guides.en;
   };
 
-  const generateAudioExercises = (language: string, customization: any): string[] => {
+  const generateAudioExercises = (language: string, customization: CustomizationOptions): string[] => {
     return ["Repeat after me", "Listen and choose", "Fill in the blanks", "Conversation practice"];
   };
 
@@ -374,7 +403,7 @@ export default function AICreativeFeatures({
           <div>
             <label className="block text-white font-semibold mb-2">Content Type</label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {['story', 'dialogue', 'exercise', 'game', 'visual', 'audio'].map((type) => (
+              {(['story', 'dialogue', 'exercise', 'game', 'visual', 'audio'] as ContentType[]).map((type) => (
                 <button
                   key={type}
                   onClick={() => setSelectedType(type)}
@@ -396,7 +425,7 @@ export default function AICreativeFeatures({
               <label className="block text-white font-semibold mb-2">Difficulty</label>
               <select
                 value={customization.difficulty}
-                onChange={(e) => setCustomization(prev => ({ ...prev, difficulty: e.target.value }))}
+                onChange={(e) => setCustomization(prev => ({ ...prev, difficulty: e.target.value as DifficultyLevel }))}
                 className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white"
               >
                 <option value="beginner">Beginner</option>
@@ -409,7 +438,7 @@ export default function AICreativeFeatures({
               <label className="block text-white font-semibold mb-2">Length</label>
               <select
                 value={customization.length}
-                onChange={(e) => setCustomization(prev => ({ ...prev, length: e.target.value }))}
+                onChange={(e) => setCustomization(prev => ({ ...prev, length: e.target.value as ContentLength }))}
                 className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white"
               >
                 <option value="short">Short</option>
@@ -422,7 +451,7 @@ export default function AICreativeFeatures({
               <label className="block text-white font-semibold mb-2">Style</label>
               <select
                 value={customization.style}
-                onChange={(e) => setCustomization(prev => ({ ...prev, style: e.target.value }))}
+                onChange={(e) => setCustomization(prev => ({ ...prev, style: e.target.value as ContentStyle }))}
                 className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white"
               >
                 <option value="conversational">Conversational</option>
@@ -511,12 +540,12 @@ export default function AICreativeFeatures({
                 </div>
                 
                 <div className="text-white/80 text-sm mb-3">
-                  {content.type === 'story' && content.content.text}
-                  {content.type === 'dialogue' && content.content.dialogue[0]?.text}
-                  {content.type === 'exercise' && content.content.instructions}
-                  {content.type === 'game' && content.content.rules}
-                  {content.type === 'visual' && content.content.description}
-                  {content.type === 'audio' && content.content.script}
+                  {content.type === 'story' && (content.content as any)?.text}
+                  {content.type === 'dialogue' && (content.content as any)?.dialogue?.[0]?.text}
+                  {content.type === 'exercise' && (content.content as any)?.instructions}
+                  {content.type === 'game' && (content.content as any)?.rules}
+                  {content.type === 'visual' && (content.content as any)?.description}
+                  {content.type === 'audio' && (content.content as any)?.script}
                 </div>
                 
                 <div className="flex items-center justify-between">

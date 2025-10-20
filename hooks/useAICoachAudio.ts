@@ -20,7 +20,7 @@ export function useAICoachAudio() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const currentAudioRef = useRef<Audio | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentTTSRef = useRef<any>(null);
   const audioQueueRef = useRef<string[]>([]);
   const isProcessingRef = useRef(false);
@@ -70,9 +70,9 @@ export function useAICoachAudio() {
       let audioControls: AudioControls | null = null;
 
       // Method 1: Try Google TTS (if available)
-      if (tts.synthesizeSpeech) {
+      if ('synthesizeSpeech' in tts && typeof tts.synthesizeSpeech === 'function') {
         try {
-          const audioBuffer = await tts.synthesizeSpeech({
+          const audioBuffer = await (tts as any).synthesizeSpeech({
             language: ttsLanguage,
             text: text,
             speed: 0.9, // Slightly slower for better comprehension

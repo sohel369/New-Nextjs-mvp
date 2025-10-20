@@ -61,6 +61,12 @@ const GlobalLanguageToggle: React.FC<GlobalLanguageToggleProps> = ({
   </div>
 );
 
+interface QuizResults {
+  score: number;
+  total: number;
+  timeSpent: number;
+}
+
 interface QuizScreenEnhancedProps {
   selectedLanguage?: string;
   onFinish?: (score: number, total: number) => void;
@@ -76,7 +82,7 @@ const QuizScreenEnhanced: React.FC<QuizScreenEnhancedProps> = ({
 }) => {
   const [useEnhancedQuiz, setUseEnhancedQuiz] = useState(true);
   const [quizFinished, setQuizFinished] = useState(false);
-  const [finalScore, setFinalScore] = useState(null);
+  const [finalScore, setFinalScore] = useState<QuizResults | null>(null);
   const [quizStarted, setQuizStarted] = useState(false);
   const [learningLanguage, setLearningLanguage] = useState('ar'); // Language to learn
 
@@ -88,7 +94,13 @@ const QuizScreenEnhanced: React.FC<QuizScreenEnhancedProps> = ({
     }
   };
 
-  const handleQuestionComplete = (questionIndex, isCorrect, answer) => {
+  // Wrapper for QuizScreen onFinish callback
+  const handleQuizScreenFinish = (score: number, total: number) => {
+    // For QuizScreen, we don't have timeSpent, so we'll use 0 as default
+    handleQuizFinish(score, total, 0);
+  };
+
+  const handleQuestionComplete = (questionIndex: number, isCorrect: boolean, answer: string) => {
     console.log(`Question ${questionIndex + 1}: ${isCorrect ? 'Correct' : 'Incorrect'} - ${answer}`);
   };
 
@@ -315,7 +327,7 @@ const QuizScreenEnhanced: React.FC<QuizScreenEnhancedProps> = ({
         ) : (
           <QuizScreen
             selectedLanguage={learningLanguage}
-            onFinish={handleQuizFinish}
+            onFinish={handleQuizScreenFinish}
           />
         )}
       </div>

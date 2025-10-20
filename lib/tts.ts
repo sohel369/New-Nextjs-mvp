@@ -109,7 +109,7 @@ export class GoogleTTS {
           view[i] = audioData.charCodeAt(i);
         }
         
-        return audioBuffer as AudioBuffer;
+        return audioBuffer as unknown as AudioBuffer;
       }
       
       return null;
