@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Volume2, VolumeX, Bot, Send, Loader2, Play, Pause, Square } from 'lucide-react';
 import { useAICoachAudio } from '../hooks/useAICoachAudio';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 
 interface AICoachProps {
   language: string;
@@ -43,6 +44,29 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
     soundEnabled 
   } = useAICoachAudio();
 
+  const languageMap: { [key: string]: string } = {
+    'ar': 'ar-SA',
+    'en': 'en-US',
+    'nl': 'nl-NL',
+    'id': 'id-ID',
+    'ms': 'ms-MY',
+    'th': 'th-TH',
+    'km': 'km-KH'
+  };
+
+  const speech = useSpeechRecognition({ 
+    language: languageMap[language] || 'en-US', 
+    continuous: false, 
+    interimResults: false 
+  });
+
+  // Clear speech error when user tries again
+  useEffect(() => {
+    if (speech.error) {
+      console.log('[AI Coach] Speech error detected:', speech.error);
+    }
+  }, [speech.error]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -74,16 +98,6 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
     const utterance = new SpeechSynthesisUtterance(text);
     
     // Set language based on selected language
-    const languageMap: { [key: string]: string } = {
-      'ar': 'ar-SA',
-      'en': 'en-US',
-      'nl': 'nl-NL',
-      'id': 'id-ID',
-      'ms': 'ms-MY',
-      'th': 'th-TH',
-      'km': 'km-KH'
-    };
-    
     utterance.lang = languageMap[language] || 'en-US';
     utterance.rate = 0.8; // Slightly slower for better comprehension
     utterance.pitch = 1.0;
@@ -122,48 +136,30 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
   };
 
   const handleVoiceInput = () => {
-    if (!('webkitSpeechRecognition' in window)) {
+    if (!speech.isSupported) {
+      console.warn('[AI Coach] SpeechRecognition not supported');
       alert('Speech recognition not supported in this browser');
       return;
     }
-
-    const recognition = new (window as any).webkitSpeechRecognition(); // WebKit Speech Recognition API
-    recognition.continuous = false;
-    recognition.interimResults = false;
     
-    // Enhanced language detection for better Arabic support
-    const languageMap: { [key: string]: string } = {
-      'ar': 'ar-SA',
-      'nl': 'nl-NL', 
-      'id': 'id-ID',
-      'ms': 'ms-MY',
-      'th': 'th-TH',
-      'km': 'km-KH',
-      'en': 'en-US'
-    };
+    // Clear any previous errors
+    speech.clearError();
     
-    recognition.lang = languageMap[language] || 'en-US';
-
-    recognition.onstart = () => {
+    speech.start().then(() => {
       setIsListening(true);
-    };
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setInputText(transcript);
-      handleSendMessage(transcript);
-    };
-
-    recognition.onend = () => {
+      speech.attachResultHandler((res) => {
+        if (res.transcript) {
+          console.log('[AI Coach] Recognized:', res.transcript);
+          setInputText(res.transcript);
+          handleSendMessage(res.transcript);
+          setIsListening(false);
+          speech.stop();
+        }
+      });
+    }).catch((error) => {
+      console.error('[AI Coach] Speech recognition failed:', error);
       setIsListening(false);
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-      setIsListening(false);
-    };
-
-    recognition.start();
+    });
   };
 
   const handleSendMessage = async (text?: string) => {
@@ -192,68 +188,31 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
       }
     }
 
-    // Simulate AI response (replace with actual AI API call)
-    setTimeout(async () => {
-      const aiResponse = generateAIResponse(messageText, language);
+    try {
+      console.log('[AI Coach] Calling AI API with text:', messageText);
+      const res = await fetch('/api/ai-coach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: messageText, language })
+      });
+      const data = await res.json();
+      const aiResponse = data?.reply || 'Sorry, I could not generate a response.';
       const aiMessage = {
         id: (Date.now() + 1).toString(),
         type: 'ai' as const,
         content: aiResponse,
         timestamp: new Date()
       };
-      
       setMessages(prev => [...prev, aiMessage]);
       setIsProcessing(false);
-      
-      // Automatically read AI response aloud
       if (ttsEnabled) {
-        // Small delay to ensure message is displayed first
         setTimeout(() => {
           speakText(aiResponse);
-        }, 500);
+        }, 300);
       }
-    }, soundEnabled ? 3000 : 1500); // Longer delay if we're reading back the text
-  };
-
-  const generateAIResponse = (userInput: string, lang: string): string => {
-    const responses = {
-      pronunciation: [
-        "Great pronunciation! Your accent is improving. Try to emphasize the 'th' sound more clearly.",
-        "Good attempt! The word should be pronounced with more emphasis on the second syllable.",
-        "Excellent! Your pronunciation is very clear. Keep practicing to maintain this level.",
-        "Nice work! Try to slow down a bit and focus on each syllable clearly.",
-        "Good pronunciation! Remember to keep your tongue relaxed for better clarity."
-      ],
-      grammar: [
-        "That's a good sentence structure! Remember to use the correct tense for past events.",
-        "Almost perfect! Just remember to add the article 'the' before the noun.",
-        "Great grammar! You're using the conditional tense correctly.",
-        "Good sentence! Try to practice the pronunciation of the past tense ending.",
-        "Excellent grammar! Now let's work on making it sound more natural when you speak."
-      ],
-      vocabulary: [
-        "Excellent word choice! That's a more advanced vocabulary word. Well done!",
-        "Good use of vocabulary! You could also use 'magnificent' as a synonym for 'great'.",
-        "Perfect! You're expanding your vocabulary nicely. Keep learning new words!",
-        "Great word! Practice saying it slowly to get the pronunciation just right.",
-        "Nice vocabulary! Try to use this word in different sentences to practice."
-      ],
-      general: [
-        "That's a great question! Let me help you understand this concept better.",
-        "I can see you're making good progress! Keep up the excellent work.",
-        "Wonderful! You're showing real improvement in your language skills.",
-        "Good practice! Try to speak a bit louder and more confidently.",
-        "Excellent! Your language learning is progressing well. Keep practicing!"
-      ]
-    };
-
-    // Add pronunciation-specific responses based on input length
-    if (userInput.length < 10) {
-      return responses.pronunciation[Math.floor(Math.random() * responses.pronunciation.length)];
-    } else if (userInput.length < 30) {
-      return responses.vocabulary[Math.floor(Math.random() * responses.vocabulary.length)];
-    } else {
-      return responses.grammar[Math.floor(Math.random() * responses.grammar.length)];
+    } catch (err) {
+      console.error('[AI Coach] API call failed:', err);
+      setIsProcessing(false);
     }
   };
 
@@ -462,6 +421,11 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
           <div className="text-xs text-gray-400">
             {isListening ? (
               'Listening...'
+            ) : speech.error ? (
+              <div className="text-red-400">
+                <div className="font-medium">{speech.error}</div>
+                <div className="text-xs mt-1">Click microphone to try again</div>
+              </div>
             ) : (
               <div>
                 <div className="hidden sm:block">Click microphone to speak</div>

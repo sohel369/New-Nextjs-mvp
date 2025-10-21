@@ -131,7 +131,7 @@ export default function DashboardPage() {
 
   return (
     <ProtectedRoute>
-      <div className="h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col overflow-x-hidden relative w-full dashboard-container" dir={isRTL ? 'rtl' : 'ltr'} style={{ visibility: 'visible', opacity: 1 }}>
+      <div className="h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col overflow-x-hidden relative w-full dashboard-container" dir={isRTL ? 'rtl' : 'ltr'}>
         {/* Responsive Header */}
         <header className="flex-shrink-0 p-3 sm:p-4 lg:p-6 border-b border-white/10">
           <div className="max-w-7xl mx-auto">
@@ -257,7 +257,7 @@ export default function DashboardPage() {
         </header>
 
         {/* Main Content - Scrollable */}
-        <main className="flex-1 overflow-y-auto px-3 sm:px-4 lg:px-6 pb-16 sm:pb-20 w-full" style={{ visibility: 'visible', opacity: 1 }}>
+        <main className="flex-1 overflow-y-auto px-3 sm:px-4 lg:px-6 pb-16 sm:pb-20 w-full">
           <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 w-full">
             {/* Welcome Section */}
             <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 relative overflow-hidden">

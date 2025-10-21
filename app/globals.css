@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Responsive styles will be included directly */
+
 /* Global Theme and Font Size Variables */
 :root {
   --base-font-size: 16px;
@@ -79,26 +81,7 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Apply theme colors to common elements */
-.bg-slate-900 {
-  background-color: var(--bg-primary) !important;
-}
-
-.text-white {
-  color: var(--text-primary) !important;
-}
-
-.text-white\/70 {
-  color: var(--text-secondary) !important;
-}
-
-.border-slate-700 {
-  border-color: var(--border-color) !important;
-}
-
-.bg-slate-800 {
-  background-color: var(--bg-secondary) !important;
-}
+/* Remove overrides of Tailwind utility classes to preserve intended contrast */
 
 /* Arabic RTL Support */
 .arabic-layout {
@@ -111,16 +94,13 @@ body {
   font-family: 'Noto Sans Arabic', 'Arial Unicode MS', 'Segoe UI', sans-serif;
 }
 
-/* Ensure dashboard is always visible */
+/* Dashboard container styles - ensure consistent rendering across environments */
 .dashboard-container {
-  visibility: visible !important;
-  opacity: 1 !important;
-  display: flex !important;
-}
-
-.dashboard-container * {
-  visibility: visible !important;
-  opacity: 1 !important;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
 }
 
 /* RTL support - minimal changes */
@@ -128,9 +108,53 @@ body {
   text-align: right;
 }
 
-[dir="rtl"] .dashboard-container {
-  visibility: visible !important;
-  opacity: 1 !important;
+/* Ensure consistent rendering across environments */
+.dashboard-container,
+.dashboard-container * {
+  box-sizing: border-box;
+}
+
+/* Force consistent font rendering */
+.dashboard-container {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Essential responsive styles for consistent rendering */
+@media (max-width: 768px) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+@media (max-width: 640px) {
+  .responsive-text-sm {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+}
+
+/* Safe area support for mobile devices */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .dashboard-container {
+    border: 1px solid currentColor;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-container,
+  .dashboard-container * {
+    transition: none;
+    animation: none;
+  }
 }
 
 /* Arabic text support */
