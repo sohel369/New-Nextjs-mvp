@@ -83,7 +83,7 @@ export default function TestDashboardPage() {
                     <button
                       onClick={() => setCurrentLanguage('en')}
                       className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                        currentLanguage === 'en' 
+                        currentLanguage.code === 'en' 
                           ? 'bg-blue-600 text-white' 
                           : 'text-white/70 hover:text-white'
                       }`}
@@ -93,7 +93,7 @@ export default function TestDashboardPage() {
                     <button
                       onClick={() => setCurrentLanguage('ar')}
                       className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                        currentLanguage === 'ar' 
+                        currentLanguage.code === 'ar' 
                           ? 'bg-blue-600 text-white' 
                           : 'text-white/70 hover:text-white'
                       }`}

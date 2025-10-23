@@ -7,9 +7,8 @@ import LessonDetail from '../../components/LessonDetail';
 import { Lesson } from '../../data/lessonsData';
 
 export default function LessonsPage() {
-  const { currentLanguage } = useLanguage();
+  const { currentLanguage, isRTL } = useLanguage();
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
-  const [isRTL, setIsRTL] = useState(currentLanguage === 'ar');
 
   const handleSelectLesson = (lesson: Lesson) => {
     setSelectedLesson(lesson);
@@ -30,6 +29,10 @@ export default function LessonsPage() {
   }
 
   return (
-    <LessonList onSelectLesson={handleSelectLesson} />
+    <LessonList 
+      onSelectLesson={handleSelectLesson}
+      language={currentLanguage.code}
+      isRTL={isRTL}
+    />
   );
 }
