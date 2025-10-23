@@ -1,22 +1,23 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, BellRing, X, Check, CheckCheck } from 'lucide-react';
-import { useEnhancedNotifications } from '../contexts/EnhancedNotificationContext';
+import { Bell, BellRing, Check, CheckCheck, X, MoreVertical } from 'lucide-react';
+import { useNotifications } from './NotificationProvider';
 
-interface NotificationBellProps {
+interface NotificationDropdownProps {
   className?: string;
 }
 
-export const NotificationBell: React.FC<NotificationBellProps> = ({
+export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   className = '',
 }) => {
   const {
     unreadCount,
     notifications,
+    loading,
     markAsRead,
     markAllAsRead,
-  } = useEnhancedNotifications();
+  } = useNotifications();
 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -50,10 +51,6 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
         return '⚠️';
       case 'error':
         return '❌';
-      case 'achievement':
-        return '🏆';
-      case 'progress':
-        return '📈';
       default:
         return 'ℹ️';
     }
@@ -67,12 +64,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
         return 'text-yellow-400';
       case 'error':
         return 'text-red-400';
-      case 'achievement':
-        return 'text-purple-400';
-      case 'progress':
-        return 'text-blue-400';
       default:
-        return 'text-gray-400';
+        return 'text-blue-400';
     }
   };
 
@@ -134,18 +127,20 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
 
           {/* Notifications List */}
           <div className="max-h-96 overflow-y-auto">
-            {notifications.length === 0 ? (
+            {loading ? (
+              <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                Loading notifications...
+              </div>
+            ) : notifications.length === 0 ? (
               <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                 No notifications
               </div>
             ) : (
               <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {notifications.slice(0, 10).map((notification) => (
+                {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer ${
-                      !notification.read ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                    }`}
+                    className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
                     onClick={() => handleNotificationClick(notification.id)}
                   >
                     <div className="flex items-start space-x-3">
@@ -161,7 +156,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                             {notification.title}
                           </p>
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {notification.timestamp.toLocaleTimeString()}
+                            {new Date(notification.created_at).toLocaleTimeString()}
                           </span>
                         </div>
                         
