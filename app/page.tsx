@@ -358,7 +358,8 @@ export default function Home() {
               <div>
                 <h3 className="text-white font-semibold mb-4">Product</h3>
                 <ul className="space-y-2 text-sm">
-                  <li><Link href="/lessons" className="text-white/70 hover:text-white transition-colors">Lessons</Link></li>
+                  <li><Link href="/lessons" className="text-white/70 hover:text-white transition-colors">Interactive Lessons</Link></li>
+                  <li><Link href="/lesson-ai-coach" className="text-white/70 hover:text-white transition-colors">Lesson & AI Coach</Link></li>
                   <li><Link href="/quiz" className="text-white/70 hover:text-white transition-colors">Quizzes</Link></li>
                   <li><Link href="/leaderboard" className="text-white/70 hover:text-white transition-colors">Leaderboard</Link></li>
                   <li><Link href="/ai-coach" className="text-white/70 hover:text-white transition-colors">AI Coach</Link></li>

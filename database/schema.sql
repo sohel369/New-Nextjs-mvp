@@ -100,6 +100,22 @@ CREATE TABLE lessons (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- User lesson progress table for AI Coach lessons
+CREATE TABLE user_lesson_progress (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  language VARCHAR(5) NOT NULL,
+  current_question_index INTEGER DEFAULT 0,
+  user_answers JSONB DEFAULT '[]',
+  ai_coach_messages JSONB DEFAULT '[]',
+  total_questions INTEGER DEFAULT 0,
+  completed_questions INTEGER DEFAULT 0,
+  started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  completed_at TIMESTAMP WITH TIME ZONE,
+  UNIQUE(user_id, language)
+);
+
 -- Insert initial languages
 INSERT INTO languages (code, name, native_name, flag_emoji, is_rtl) VALUES
 ('en', 'English', 'English', '🇺🇸', false),
@@ -122,6 +138,7 @@ INSERT INTO badges (name, description, icon, requirement, xp_reward) VALUES
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_badges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_lesson_progress ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies
 CREATE POLICY "Users can view own data" ON users FOR SELECT USING (auth.uid() = id);
@@ -132,3 +149,7 @@ CREATE POLICY "Users can insert own progress" ON user_progress FOR INSERT WITH C
 
 CREATE POLICY "Users can view own badges" ON user_badges FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own badges" ON user_badges FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can view own lesson progress" ON user_lesson_progress FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own lesson progress" ON user_lesson_progress FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own lesson progress" ON user_lesson_progress FOR UPDATE USING (auth.uid() = user_id);

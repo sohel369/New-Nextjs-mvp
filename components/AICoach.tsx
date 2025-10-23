@@ -8,9 +8,21 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 interface AICoachProps {
   language: string;
   isRTL?: boolean;
+  initialMessages?: Array<{
+    id: string;
+    type: 'user' | 'ai';
+    content: string;
+    timestamp: Date;
+  }>;
+  onNewMessage?: (message: {
+    id: string;
+    type: 'user' | 'ai';
+    content: string;
+    timestamp: Date;
+  }) => void;
 }
 
-export default function AICoach({ language, isRTL = false }: AICoachProps) {
+export default function AICoach({ language, isRTL = false, initialMessages, onNewMessage }: AICoachProps) {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [messages, setMessages] = useState<Array<{
@@ -19,7 +31,7 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
     content: string;
     timestamp: Date;
     audioControls?: any;
-  }>>([
+  }>>(initialMessages || [
     {
       id: '1',
       type: 'ai',
@@ -27,6 +39,14 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
       timestamp: new Date()
     }
   ]);
+
+  // Keep only last 3 messages for conversation memory
+  const maintainConversationMemory = (newMessages: any[]) => {
+    if (newMessages.length > 3) {
+      return newMessages.slice(-3);
+    }
+    return newMessages;
+  };
   const [inputText, setInputText] = useState('');
   const [currentlyPlayingId, setCurrentlyPlayingId] = useState<string | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(true);
@@ -173,7 +193,9 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    onNewMessage?.(userMessage);
     setInputText('');
     setIsProcessing(true);
 
@@ -203,7 +225,10 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
         content: aiResponse,
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, aiMessage]);
+      const finalMessages = [...updatedMessages, aiMessage];
+      const memoryMessages = maintainConversationMemory(finalMessages);
+      setMessages(memoryMessages);
+      onNewMessage?.(aiMessage);
       setIsProcessing(false);
       if (ttsEnabled) {
         setTimeout(() => {
@@ -262,35 +287,50 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
 
   return (
     <div className="max-w-4xl mx-auto p-2 sm:p-4 lg:p-6" dir={isRTL ? 'rtl' : 'ltr'}>
-      <div className="bg-gray-800/50 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
+      <style jsx>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.3s ease-out;
+        }
+      `}</style>
+      <div className="bg-gradient-to-br from-purple-800/50 to-blue-800/50 backdrop-blur-lg rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 border border-purple-500/20 shadow-lg">
         <div className="flex items-center space-x-3 mb-4">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-600 rounded-full flex items-center justify-center">
-            <Bot className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
+          <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
+            <Bot className="w-6 h-6 text-white" />
           </div>
           <div>
             <h2 className="text-lg sm:text-xl font-bold text-white">AI Language Coach</h2>
-            <p className="text-xs sm:text-sm text-gray-400">Practice {language} with personalized feedback</p>
+            <p className="text-xs sm:text-sm text-purple-200">Practice {language} with personalized feedback</p>
           </div>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="bg-gray-800/50 rounded-xl p-3 sm:p-6 mb-4 sm:mb-6 h-80 sm:h-96 overflow-y-auto">
-        <div className="space-y-3 sm:space-y-4">
+      {/* Enhanced Messages */}
+      <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-lg rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 h-80 sm:h-96 overflow-y-auto border border-gray-700/50 shadow-lg">
+        <div className="space-y-4">
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}
             >
               <div
-                className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-3 sm:px-4 py-2 sm:py-3 rounded-lg ${
+                className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-lg transition-all duration-200 hover:shadow-xl ${
                   message.type === 'user'
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-gray-700 text-white'
+                    ? 'bg-gradient-to-br from-purple-600 to-purple-700 text-white'
+                    : 'bg-gradient-to-br from-gray-700 to-gray-800 text-white border border-gray-600/50'
                 }`}
               >
-                <p className="text-xs sm:text-sm break-words">{message.content}</p>
-                <div className="flex items-center justify-between mt-2">
+                <p className="text-sm break-words leading-relaxed">{message.content}</p>
+                <div className="flex items-center justify-between mt-3">
                   <p className="text-xs opacity-70">
                     {message.timestamp.toLocaleTimeString()}
                   </p>
@@ -299,10 +339,10 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
                       {message.type === 'user' ? (
                         <button
                           onClick={() => handleReadBackUserText(message.id, message.content)}
-                          className={`p-1 rounded transition-colors ${
+                          className={`p-2 rounded-full transition-all duration-200 ${
                             currentlyPlayingId === message.id
-                              ? 'bg-red-600 hover:bg-red-700'
-                              : 'bg-green-600 hover:bg-green-700'
+                              ? 'bg-red-600 hover:bg-red-700 shadow-lg'
+                              : 'bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-green-500/25'
                           }`}
                           title={currentlyPlayingId === message.id ? 'Stop reading' : 'Hear pronunciation'}
                         >
@@ -315,10 +355,10 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
                       ) : (
                         <button
                           onClick={() => handlePlayMessage(message.id, message.content)}
-                          className={`p-1 rounded transition-colors ${
+                          className={`p-2 rounded-full transition-all duration-200 ${
                             currentlyPlayingId === message.id
-                              ? 'bg-red-600 hover:bg-red-700'
-                              : 'bg-blue-600 hover:bg-blue-700'
+                              ? 'bg-red-600 hover:bg-red-700 shadow-lg'
+                              : 'bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-blue-500/25'
                           }`}
                           title={currentlyPlayingId === message.id ? 'Stop audio' : 'Play audio'}
                         >
@@ -369,9 +409,9 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
         </div>
       </div>
 
-      {/* Input */}
-      <div className="bg-gray-800/50 rounded-xl p-3 sm:p-4">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+      {/* Enhanced Input */}
+      <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-lg rounded-xl p-4 sm:p-6 border border-gray-700/50 shadow-lg">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-3">
           <div className="flex-1">
             <input
               type="text"
@@ -379,7 +419,7 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
               onChange={(e) => setInputText(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
               placeholder={`Type your message in ${language}...`}
-              className="w-full bg-gray-700 text-white px-3 sm:px-4 py-2 sm:py-3 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none text-sm sm:text-base"
+              className="w-full bg-gray-700/50 text-white px-4 py-3 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none text-sm sm:text-base transition-all duration-200 focus:bg-gray-700 focus:shadow-lg"
               disabled={isProcessing}
             />
           </div>
@@ -387,32 +427,32 @@ export default function AICoach({ language, isRTL = false }: AICoachProps) {
             <button
               onClick={handleVoiceInput}
               disabled={isListening || isProcessing}
-              className={`p-2 sm:p-3 rounded-lg transition-colors ${
+              className={`p-3 rounded-lg transition-all duration-200 shadow-lg ${
                 isListening
-                  ? 'bg-red-600 hover:bg-red-700'
-                  : 'bg-blue-600 hover:bg-blue-700'
+                  ? 'bg-red-600 hover:bg-red-700 animate-pulse'
+                  : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-500/25'
               } text-white`}
               title={isListening ? 'Stop listening' : 'Start voice input'}
             >
-              {isListening ? <MicOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Mic className="w-4 h-4 sm:w-5 sm:h-5" />}
+              {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </button>
             {inputText.trim() && soundEnabled && (
               <button
                 onClick={() => handleReadBackUserText('input', inputText)}
                 disabled={isProcessing}
-                className="p-2 sm:p-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                className="p-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-green-500/25"
                 title="Hear pronunciation"
               >
-                <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                <Volume2 className="w-5 h-5" />
               </button>
             )}
             <button
               onClick={() => handleSendMessage()}
               disabled={!inputText.trim() || isProcessing}
-              className="p-2 sm:p-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              className="p-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-purple-500/25"
               title="Send message"
             >
-              <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Send className="w-5 h-5" />
             </button>
           </div>
         </div>

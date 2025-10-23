@@ -345,14 +345,23 @@ export default function DashboardPage() {
                 <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`} />
               </Link>
               
-              <Link
-                href="/ai-coach"
-                className={`bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-4 sm:py-5 lg:py-6 px-4 sm:px-6 lg:px-8 rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center justify-center ${isRTL ? 'space-x-reverse space-x-2 sm:space-x-3' : 'space-x-2 sm:space-x-3'} shadow-lg hover:shadow-xl group`}
-              >
-                <Brain className="w-5 h-5 sm:w-6 sm:h-6" />
-                <span className="text-sm sm:text-base lg:text-lg">{t('aiCoach')}</span>
-                <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`} />
-              </Link>
+        <Link
+          href="/lessons"
+          className={`bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-4 sm:py-5 lg:py-6 px-4 sm:px-6 lg:px-8 rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center justify-center ${isRTL ? 'space-x-reverse space-x-2 sm:space-x-3' : 'space-x-2 sm:space-x-3'} shadow-lg hover:shadow-xl group`}
+        >
+          <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
+          <span className="text-sm sm:text-base lg:text-lg">Interactive Lessons</span>
+          <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`} />
+        </Link>
+        
+        <Link
+          href="/lesson-ai-coach"
+          className={`bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-4 sm:py-5 lg:py-6 px-4 sm:px-6 lg:px-8 rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center justify-center ${isRTL ? 'space-x-reverse space-x-2 sm:space-x-3' : 'space-x-2 sm:space-x-3'} shadow-lg hover:shadow-xl group`}
+        >
+          <Brain className="w-5 h-5 sm:w-6 sm:h-6" />
+          <span className="text-sm sm:text-base lg:text-lg">Lesson & AI Coach</span>
+          <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`} />
+        </Link>
             </div>
 
             {/* Quick Stats Grid */}
