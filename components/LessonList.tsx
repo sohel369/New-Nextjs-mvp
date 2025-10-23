@@ -8,13 +8,17 @@ import Link from 'next/link';
 
 interface LessonListProps {
   onSelectLesson?: (lesson: Lesson) => void;
+  language?: string;
+  isRTL?: boolean;
 }
 
-export default function LessonList({ onSelectLesson }: LessonListProps) {
+export default function LessonList({ onSelectLesson, language, isRTL }: LessonListProps) {
   const { currentLanguage } = useLanguage();
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
   
-  const lessons = LESSONS_DATA[String(currentLanguage) as keyof typeof LESSONS_DATA] || LESSONS_DATA['en'];
+  // Use passed language prop or fall back to context
+  const selectedLanguage = language || currentLanguage;
+  const lessons = LESSONS_DATA[String(selectedLanguage) as keyof typeof LESSONS_DATA] || LESSONS_DATA['en'];
   
   const filteredLessons = selectedLevel === 'all' 
     ? lessons 
@@ -39,7 +43,7 @@ export default function LessonList({ onSelectLesson }: LessonListProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="max-w-7xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
