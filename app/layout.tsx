@@ -4,7 +4,7 @@ import "./globals.css";
 import { LanguageProvider } from "../contexts/LanguageContext";
 import { AccessibilityProvider } from "../contexts/AccessibilityContext";
 import { AuthProvider } from "../contexts/AuthContext";
-import { NotificationProvider } from "../contexts/NotificationContext";
+import { EnhancedNotificationProvider } from "../contexts/EnhancedNotificationContext";
 import { SettingsProvider } from "../contexts/SettingsContext";
 import ErrorBoundary from "../components/ErrorBoundary";
 import AuthFlowGuard from "../components/AuthFlowGuard";
@@ -43,11 +43,11 @@ export default function RootLayout({
               <GlobalThemeProvider>
                 <LanguageProvider>
                   <AccessibilityProvider>
-                    <NotificationProvider>
+                    <EnhancedNotificationProvider appName="LinguaAI - Smart Language Learning">
                       <NotificationPopupWrapper>
                         {children}
                       </NotificationPopupWrapper>
-                    </NotificationProvider>
+                    </EnhancedNotificationProvider>
                   </AccessibilityProvider>
                 </LanguageProvider>
               </GlobalThemeProvider>

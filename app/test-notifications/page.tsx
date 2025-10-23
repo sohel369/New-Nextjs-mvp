@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useNotifications } from '../../contexts/NotificationContext';
+import { useEnhancedNotifications } from '../../contexts/EnhancedNotificationContext';
 import { Bell, Trophy, Target, Users, Zap, Clock, Trash2, Check } from 'lucide-react';
 
 export default function TestNotificationsPage() {
-  const { addNotification, clearAllNotifications, notifications, unreadCount } = useNotifications();
+  const { addNotification, clearAllNotifications, notifications, unreadCount } = useEnhancedNotifications();
   const [isLoading, setIsLoading] = useState(false);
 
   const testNotifications = [

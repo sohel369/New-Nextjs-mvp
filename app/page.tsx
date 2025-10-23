@@ -26,7 +26,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTranslation } from '../hooks/useTranslation';
-import NotificationBell from '../components/NotificationBell';
+import { NotificationBell } from '../components/NotificationBell';
 import BottomNavigation from '../components/BottomNavigation';
 import { useRouter } from 'next/navigation';
 

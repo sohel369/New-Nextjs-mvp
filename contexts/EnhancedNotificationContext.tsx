@@ -152,7 +152,16 @@ export function EnhancedNotificationProvider({
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('Error fetching notifications:', error);
+          // Check if it's a table doesn't exist error
+          if (error.code === 'PGRST116' || error.message?.includes('relation "notifications" does not exist')) {
+            console.warn('Notifications table does not exist yet. Please run the database migration.');
+            setNotifications([]);
+            return;
+          }
+          
+          // Only log other errors, don't throw
+          console.warn('Error fetching notifications:', error.message || error);
+          setNotifications([]);
           return;
         }
 
@@ -168,7 +177,8 @@ export function EnhancedNotificationProvider({
 
         setNotifications(formattedNotifications);
       } catch (error) {
-        console.error('Error fetching notifications:', error);
+        console.warn('Error fetching notifications:', error);
+        setNotifications([]);
       }
     };
 
@@ -186,45 +196,55 @@ export function EnhancedNotificationProvider({
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newNotification = payload.new;
-            const formattedNotification = {
-              id: newNotification.id,
-              type: newNotification.type as Notification['type'],
-              title: newNotification.title,
-              message: newNotification.message,
-              timestamp: new Date(newNotification.created_at),
-              read: newNotification.read,
-              priority: 'medium' as const,
-            };
-            
-            setNotifications(prev => [formattedNotification, ...prev]);
-            
-            // Show browser notification for new notifications
-            if (!newNotification.read) {
-              showBrowserNotification(newNotification.title, {
-                body: newNotification.message,
-                icon: '/favicon.ico',
-              });
+          try {
+            if (payload.eventType === 'INSERT') {
+              const newNotification = payload.new;
+              const formattedNotification = {
+                id: newNotification.id,
+                type: newNotification.type as Notification['type'],
+                title: newNotification.title,
+                message: newNotification.message,
+                timestamp: new Date(newNotification.created_at),
+                read: newNotification.read,
+                priority: 'medium' as const,
+              };
+              
+              setNotifications(prev => [formattedNotification, ...prev]);
+              
+              // Show browser notification for new notifications
+              if (!newNotification.read) {
+                showBrowserNotification(newNotification.title, {
+                  body: newNotification.message,
+                  icon: '/favicon.ico',
+                });
+              }
+            } else if (payload.eventType === 'UPDATE') {
+              const updatedNotification = payload.new;
+              setNotifications(prev => 
+                prev.map(n => 
+                  n.id === updatedNotification.id 
+                    ? { ...n, read: updatedNotification.read }
+                    : n
+                )
+              );
+            } else if (payload.eventType === 'DELETE') {
+              const deletedNotification = payload.old;
+              setNotifications(prev => 
+                prev.filter(n => n.id !== deletedNotification.id)
+              );
             }
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedNotification = payload.new;
-            setNotifications(prev => 
-              prev.map(n => 
-                n.id === updatedNotification.id 
-                  ? { ...n, read: updatedNotification.read }
-                  : n
-              )
-            );
-          } else if (payload.eventType === 'DELETE') {
-            const deletedNotification = payload.old;
-            setNotifications(prev => 
-              prev.filter(n => n.id !== deletedNotification.id)
-            );
+          } catch (error) {
+            console.warn('Error processing real-time notification update:', error);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to notifications');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.warn('Failed to subscribe to notifications - table may not exist yet');
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -264,7 +284,17 @@ export function EnhancedNotificationProvider({
         .eq('user_id', user.id);
 
       if (error) {
-        console.error('Error marking notification as read:', error);
+        // Check if it's a table doesn't exist error
+        if (error.code === 'PGRST116' || error.message?.includes('relation "notifications" does not exist')) {
+          console.warn('Notifications table does not exist yet. Please run the database migration.');
+          // Still update local state for better UX
+          setNotifications(prev => 
+            prev.map(n => n.id === id ? { ...n, read: true } : n)
+          );
+          return;
+        }
+        
+        console.warn('Error marking notification as read:', error.message || error);
         return;
       }
 
@@ -273,7 +303,11 @@ export function EnhancedNotificationProvider({
         prev.map(n => n.id === id ? { ...n, read: true } : n)
       );
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      console.warn('Error marking notification as read:', error);
+      // Still update local state for better UX
+      setNotifications(prev => 
+        prev.map(n => n.id === id ? { ...n, read: true } : n)
+      );
     }
   };
 
@@ -289,7 +323,17 @@ export function EnhancedNotificationProvider({
         .eq('read', false);
 
       if (error) {
-        console.error('Error marking all notifications as read:', error);
+        // Check if it's a table doesn't exist error
+        if (error.code === 'PGRST116' || error.message?.includes('relation "notifications" does not exist')) {
+          console.warn('Notifications table does not exist yet. Please run the database migration.');
+          // Still update local state for better UX
+          setNotifications(prev => 
+            prev.map(n => ({ ...n, read: true }))
+          );
+          return;
+        }
+        
+        console.warn('Error marking all notifications as read:', error.message || error);
         return;
       }
 
@@ -298,7 +342,11 @@ export function EnhancedNotificationProvider({
         prev.map(n => ({ ...n, read: true }))
       );
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      console.warn('Error marking all notifications as read:', error);
+      // Still update local state for better UX
+      setNotifications(prev => 
+        prev.map(n => ({ ...n, read: true }))
+      );
     }
   };
 
@@ -314,14 +362,24 @@ export function EnhancedNotificationProvider({
         .eq('user_id', user.id);
 
       if (error) {
-        console.error('Error deleting notification:', error);
+        // Check if it's a table doesn't exist error
+        if (error.code === 'PGRST116' || error.message?.includes('relation "notifications" does not exist')) {
+          console.warn('Notifications table does not exist yet. Please run the database migration.');
+          // Still update local state for better UX
+          setNotifications(prev => prev.filter(n => n.id !== id));
+          return;
+        }
+        
+        console.warn('Error deleting notification:', error.message || error);
         return;
       }
 
       // Update local state
       setNotifications(prev => prev.filter(n => n.id !== id));
     } catch (error) {
-      console.error('Error deleting notification:', error);
+      console.warn('Error deleting notification:', error);
+      // Still update local state for better UX
+      setNotifications(prev => prev.filter(n => n.id !== id));
     }
   };
 
@@ -336,14 +394,24 @@ export function EnhancedNotificationProvider({
         .eq('user_id', user.id);
 
       if (error) {
-        console.error('Error clearing all notifications:', error);
+        // Check if it's a table doesn't exist error
+        if (error.code === 'PGRST116' || error.message?.includes('relation "notifications" does not exist')) {
+          console.warn('Notifications table does not exist yet. Please run the database migration.');
+          // Still update local state for better UX
+          setNotifications([]);
+          return;
+        }
+        
+        console.warn('Error clearing all notifications:', error.message || error);
         return;
       }
 
       // Update local state
       setNotifications([]);
     } catch (error) {
-      console.error('Error clearing all notifications:', error);
+      console.warn('Error clearing all notifications:', error);
+      // Still update local state for better UX
+      setNotifications([]);
     }
   };
 

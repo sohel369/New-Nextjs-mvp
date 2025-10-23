@@ -23,7 +23,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useGlobalNotifications } from '../../hooks/useGlobalNotifications';
 import { languages } from '../../contexts/LanguageContext';
-import NotificationBell from '../../components/NotificationBell';
+import { NotificationBell } from '../../components/NotificationBell';
 import BottomNavigation from '../../components/BottomNavigation';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import DashboardNotificationPopup from '../../components/DashboardNotificationPopup';
