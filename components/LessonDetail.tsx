@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Lesson, Exercise } from '../data/lessonsData';
 import QuestionCard from './QuestionCard';
 import AICoach from './AICoach';
+import LessonCompletionModal from './LessonCompletionModal';
 import { ArrowLeft, ArrowRight, CheckCircle, Clock, Trophy, Star, Target } from 'lucide-react';
 import Link from 'next/link';
 
@@ -16,7 +17,7 @@ interface LessonDetailProps {
 export default function LessonDetail({ lesson, isRTL = false, onBack }: LessonDetailProps) {
   const [currentExercise, setCurrentExercise] = useState(0);
   const [userAnswer, setUserAnswer] = useState("");
-  const [userAnswers, setUserAnswers] = useState<Array<{exerciseId: number, answer: string, timestamp: Date}>>([]);
+  const [userAnswers, setUserAnswers] = useState<Array<{exerciseId: number, answer: string, timestamp: Date, isCorrect?: boolean, correctAnswer?: string}>>([]);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [aiCoachMessages, setAiCoachMessages] = useState<Array<{
     id: string;
@@ -45,11 +46,17 @@ export default function LessonDetail({ lesson, isRTL = false, onBack }: LessonDe
   const handleAnswer = (answer: string) => {
     if (!answer.trim()) return;
 
-    // Save user answer
+    // Validate answer and determine if correct
+    const isCorrect = validateAnswer(answer.trim(), currentExerciseData);
+    const correctAnswer = getCorrectAnswer(currentExerciseData);
+
+    // Save user answer with validation results
     const newAnswer = {
       exerciseId: currentExerciseData.id,
       answer: answer.trim(),
-      timestamp: new Date()
+      timestamp: new Date(),
+      isCorrect,
+      correctAnswer
     };
     setUserAnswers(prev => [...prev, newAnswer]);
 
@@ -103,6 +110,27 @@ export default function LessonDetail({ lesson, isRTL = false, onBack }: LessonDe
     }
   };
 
+  // Answer validation function
+  const validateAnswer = (userAnswer: string, exercise: Exercise): boolean => {
+    if (!exercise.correctAnswer) {
+      // If no correct answer is defined, use basic validation
+      return userAnswer.length > 2;
+    }
+    
+    // Simple validation - can be enhanced based on exercise type
+    const normalizedUserAnswer = userAnswer.toLowerCase().trim();
+    const normalizedCorrectAnswer = exercise.correctAnswer.toLowerCase().trim();
+    
+    return normalizedUserAnswer === normalizedCorrectAnswer || 
+           normalizedUserAnswer.includes(normalizedCorrectAnswer) ||
+           normalizedCorrectAnswer.includes(normalizedUserAnswer);
+  };
+
+  // Get correct answer for display
+  const getCorrectAnswer = (exercise: Exercise): string => {
+    return exercise.correctAnswer || 'No specific correct answer defined';
+  };
+
   const generateAIFeedback = (answer: string, exercise: Exercise): string => {
     const encouragingFeedbacks = [
       "Excellent! That's a great answer!",
@@ -146,53 +174,17 @@ export default function LessonDetail({ lesson, isRTL = false, onBack }: LessonDe
 
   if (isCompleted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="max-w-2xl mx-auto p-6 text-center">
-          <div className="bg-gradient-to-br from-green-500/20 to-blue-500/20 backdrop-blur-lg rounded-xl p-8 border border-green-500/30">
-            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="w-8 h-8 text-white" />
-            </div>
-            
-            <h2 className="text-3xl font-bold text-white mb-4">
-              Congratulations! 🎉
-            </h2>
-            
-            <p className="text-white/70 text-lg mb-6">
-              You've completed "{lesson.title}" successfully!
-            </p>
-            
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-white/10 rounded-lg p-4">
-                <Trophy className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
-                <p className="text-white font-medium">{lesson.xp} XP Earned</p>
-              </div>
-              <div className="bg-white/10 rounded-lg p-4">
-                <Target className="w-6 h-6 text-blue-400 mx-auto mb-2" />
-                <p className="text-white font-medium">{lesson.exercises.length} Exercises</p>
-              </div>
-            </div>
-            
-            <div className="flex space-x-4">
-              <button
-                onClick={onBack}
-                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-              >
-                Back to Lessons
-              </button>
-              <button
-                onClick={() => {
-                  setCurrentExercise(0);
-                  setUserAnswers([]);
-                  setUserAnswer("");
-                }}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-              >
-                Retake Lesson
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <LessonCompletionModal
+        lesson={lesson}
+        userAnswers={userAnswers}
+        onRetake={() => {
+          setCurrentExercise(0);
+          setUserAnswers([]);
+          setUserAnswer("");
+        }}
+        onBack={onBack || (() => {})}
+        isRTL={isRTL}
+      />
     );
   }
 

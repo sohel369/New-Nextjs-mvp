@@ -108,14 +108,21 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
 
   // TTS function to read text aloud
   const speakText = (text: string) => {
-    if (!ttsEnabled || !('speechSynthesis' in window)) {
+    if (!ttsEnabled) {
+      console.log('[AI Coach] TTS disabled by user');
+      return;
+    }
+    
+    if (!('speechSynthesis' in window)) {
+      console.warn('[AI Coach] Speech synthesis not supported in this browser');
       return;
     }
 
-    // Stop any current speech
-    speechSynthesis.cancel();
+    try {
+      // Stop any current speech
+      speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(text);
+      const utterance = new SpeechSynthesisUtterance(text);
     
     // Set language based on selected language
     utterance.lang = languageMap[language] || 'en-US';
@@ -142,12 +149,23 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
     };
 
     utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event.error);
+      const errorMessage = event?.error || event?.type || 'Unknown speech synthesis error';
+      console.error('Speech synthesis error:', errorMessage);
       setIsSpeaking(false);
     };
 
-    utteranceRef.current = utterance;
-    speechSynthesis.speak(utterance);
+      utteranceRef.current = utterance;
+      
+      try {
+        speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.error('Failed to start speech synthesis:', error);
+        setIsSpeaking(false);
+      }
+    } catch (error) {
+      console.error('Failed to setup speech synthesis:', error);
+      setIsSpeaking(false);
+    }
   };
 
   const stopSpeaking = () => {
@@ -158,7 +176,15 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
   const handleVoiceInput = () => {
     if (!speech.isSupported) {
       console.warn('[AI Coach] SpeechRecognition not supported');
-      alert('Speech recognition not supported in this browser');
+      alert('Speech recognition not supported in this browser. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+    
+    // Check if we're on HTTPS or localhost
+    const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (!isSecure) {
+      console.warn('[AI Coach] Microphone access requires HTTPS or localhost');
+      alert('Microphone access requires HTTPS. Please use https:// or localhost for voice features.');
       return;
     }
     
@@ -179,6 +205,7 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
     }).catch((error) => {
       console.error('[AI Coach] Speech recognition failed:', error);
       setIsListening(false);
+      alert(`Microphone error: ${error.message || 'Please check your microphone permissions.'}`);
     });
   };
 
@@ -211,14 +238,12 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
     }
 
     try {
-      console.log('[AI Coach] Calling AI API with text:', messageText);
-      const res = await fetch('/api/ai-coach', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: messageText, language })
-      });
-      const data = await res.json();
-      const aiResponse = data?.reply || 'Sorry, I could not generate a response.';
+      console.log('[AI Coach] Calling Gemini API with text:', messageText);
+      
+      // Import the sendMessage function dynamically to avoid SSR issues
+      const { sendMessage } = await import('../lib/gemini');
+      const aiResponse = await sendMessage(messageText);
+      
       const aiMessage = {
         id: (Date.now() + 1).toString(),
         type: 'ai' as const,
@@ -236,7 +261,18 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
         }, 300);
       }
     } catch (err) {
-      console.error('[AI Coach] API call failed:', err);
+      console.error('[AI Coach] Gemini API call failed:', err);
+      
+      // Add error message to chat
+      const errorMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'ai' as const,
+        content: err instanceof Error ? err.message : 'Sorry, I encountered an error. Please try again.',
+        timestamp: new Date()
+      };
+      const finalMessages = [...updatedMessages, errorMessage];
+      setMessages(finalMessages);
+      onNewMessage?.(errorMessage);
       setIsProcessing(false);
     }
   };

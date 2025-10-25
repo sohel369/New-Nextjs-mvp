@@ -37,21 +37,24 @@ export const LESSONS_DATA: { [key: string]: Lesson[] } = {
           type: "listen_repeat",
           text: "Hello! How are you?",
           hint: "Say 'Hello' politely.",
-          language: "en-US"
+          language: "en-US",
+          correctAnswer: "Hello"
         },
         {
           id: 2,
           type: "practice_speech",
           text: "Good morning",
           hint: "Try different greetings",
-          language: "en-US"
+          language: "en-US",
+          correctAnswer: "Good morning"
         },
         {
           id: 3,
           type: "translation",
           text: "Nice to meet you",
           hint: "Express politeness",
-          language: "en-US"
+          language: "en-US",
+          correctAnswer: "Nice to meet you"
         },
         {
           id: 4,

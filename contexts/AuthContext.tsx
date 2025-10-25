@@ -47,12 +47,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await new Promise(resolve => setTimeout(resolve, 100));
         
         // Get initial session with timeout
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Auth initialization timeout')), 3000)
-        );
-        
-        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]) as { data: { session: any } };
+        let session;
+        try {
+          const sessionPromise = supabase.auth.getSession();
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Auth initialization timeout after 10 seconds')), 10000)
+          );
+          
+          const result = await Promise.race([sessionPromise, timeoutPromise]) as { data: { session: any } };
+          session = result.data.session;
+        } catch (timeoutError) {
+          console.warn('Auth session timeout, continuing without session');
+          session = null;
+        }
         
         if (session) {
           console.log('Initial session found, refreshing user...');
@@ -65,7 +72,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthChecked(true);
       } catch (error) {
         console.error('Error initializing auth:', error);
-        setUser(null);
+        // Don't set user to null on timeout, just set loading to false
+        if (error instanceof Error && error.message.includes('timeout')) {
+          console.warn('Auth initialization timed out, continuing without session');
+          // Don't treat timeout as a critical error
+        } else {
+          console.error('Non-timeout auth error:', error);
+        }
         setLoading(false);
         setAuthChecked(true);
       } finally {
