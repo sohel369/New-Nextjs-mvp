@@ -13,9 +13,9 @@ export default function TestLessonCompletionPage() {
     language: "en",
     xp: 50,
     exercises: [
-      { id: 1, question: "How do you say hello in English?", type: "translation" },
-      { id: 2, question: "What's a polite way to greet someone in the morning?", type: "practice_speech" },
-      { id: 3, question: "Complete: Good _____, how are you?", type: "fill_blank" }
+      { id: 1, text: "How do you say hello in English?", type: "translation" },
+      { id: 2, text: "What's a polite way to greet someone in the morning?", type: "practice_speech" },
+      { id: 3, text: "Complete: Good _____, how are you?", type: "fill_blank" }
     ]
   };
 

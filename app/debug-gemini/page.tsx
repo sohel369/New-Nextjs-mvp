@@ -33,7 +33,7 @@ export default function DebugGeminiPage() {
       console.error('Test error:', error);
       setResult({ 
         success: false, 
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         type: 'network_error'
       });
     } finally {
@@ -72,7 +72,7 @@ export default function DebugGeminiPage() {
       console.error('Direct test error:', error);
       setResult({ 
         success: false, 
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         type: 'direct_gemini_error'
       });
     } finally {

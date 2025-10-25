@@ -13,7 +13,7 @@ interface UserAnswer {
 
 interface Exercise {
   id: number;
-  question: string;
+  text: string;
   type: string;
   correctAnswer?: string;
   options?: string[];
@@ -156,7 +156,7 @@ export default function LessonCompletionModal({
                           <p className="text-white font-medium mb-2">
                             Question {lesson.exercises.findIndex(ex => ex.id === answer.exerciseId) + 1}
                           </p>
-                          <p className="text-white/80 text-sm mb-2">{exercise?.question}</p>
+                          <p className="text-white/80 text-sm mb-2">{exercise?.text}</p>
                           <div className="space-y-1">
                             <p className="text-red-300 text-sm">
                               <span className="font-medium">Your answer:</span> {answer.answer}
