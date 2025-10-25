@@ -41,13 +41,8 @@ export async function POST(req: NextRequest) {
     // Initialize Google Generative AI
     console.log('[Gemini API] Initializing Google Generative AI...');
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-    // Generate content
-    console.log('[Gemini API] Generating content...');
-    const prompt = `You are a helpful AI language learning coach. Provide SHORT, concise responses (1-2 sentences maximum). Be encouraging and educational. Focus on grammar, vocabulary, and pronunciation tips. Keep answers brief and to the point.\n\nUser message: ${message}`;
-    
-    const result = await model.generateContent(prompt, {
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-2.5-flash',
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 100, // Limit to shorter responses
@@ -55,6 +50,12 @@ export async function POST(req: NextRequest) {
         topK: 40
       }
     });
+
+    // Generate content
+    console.log('[Gemini API] Generating content...');
+    const prompt = `You are a helpful AI language learning coach. Provide SHORT, concise responses (1-2 sentences maximum). Be encouraging and educational. Focus on grammar, vocabulary, and pronunciation tips. Keep answers brief and to the point.\n\nUser message: ${message}`;
+    
+    const result = await model.generateContent(prompt);
     const response = await result.response;
     const reply = response.text();
     
