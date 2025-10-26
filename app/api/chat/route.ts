@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
 
     if (!apiKey) {
       console.error('GEMINI_API_KEY not found in environment variables');
+      console.error('Available env vars:', Object.keys(process.env).filter(key => key.includes('GEMINI')));
       return NextResponse.json({ 
         error: 'Gemini API key not configured',
         details: 'Please set GEMINI_API_KEY environment variable'
@@ -42,10 +43,10 @@ export async function POST(req: NextRequest) {
     console.log('[Gemini API] Initializing Google Generative AI...');
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.0-flash',
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 100, // Limit to shorter responses
+        maxOutputTokens: 200,
         topP: 0.8,
         topK: 40
       }
@@ -53,23 +54,65 @@ export async function POST(req: NextRequest) {
 
     // Generate content
     console.log('[Gemini API] Generating content...');
-    const prompt = `You are a helpful AI language learning coach. Provide SHORT, concise responses (1-2 sentences maximum). Be encouraging and educational. Focus on grammar, vocabulary, and pronunciation tips. Keep answers brief and to the point.\n\nUser message: ${message}`;
-    
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const reply = response.text();
-    
-    console.log('[Gemini API] Generated reply:', reply);
+    const prompt = `You are a helpful AI language learning coach. Provide SHORT, concise responses (1-2 sentences maximum). Be encouraging and educational. Focus on grammar, vocabulary, and pronunciation tips. Keep answers brief and to the point.
 
-    if (!reply) {
-      console.error('[Gemini API] No valid response received from Gemini');
+User message: ${message}`;
+    
+    console.log('[Gemini API] Prompt:', prompt);
+    
+    try {
+      const result = await model.generateContent(prompt);
+      console.log('[Gemini API] Raw result:', JSON.stringify(result, null, 2));
+      
+      const response = await result.response;
+      console.log('[Gemini API] Response object:', JSON.stringify(response, null, 2));
+      
+      // Try different methods to get the text
+      let reply = '';
+      try {
+        reply = response.text();
+        console.log('[Gemini API] Generated reply (text()):', reply);
+      } catch (textError) {
+        console.error('[Gemini API] Error getting text:', textError);
+        
+        // Try alternative methods
+        if (response.candidates && response.candidates[0]) {
+          const candidate = response.candidates[0];
+          if (candidate.content && candidate.content.parts && candidate.content.parts[0]) {
+            reply = candidate.content.parts[0].text || '';
+            console.log('[Gemini API] Generated reply (candidates):', reply);
+          }
+        }
+      }
+      
+      console.log('[Gemini API] Final reply:', reply);
+      console.log('[Gemini API] Reply length:', reply ? reply.length : 'null/undefined');
+
+      if (!reply || reply.trim() === '') {
+        console.error('[Gemini API] No valid response received from Gemini');
+        console.error('[Gemini API] Response details:', {
+          hasResponse: !!response,
+          hasText: !!reply,
+          textLength: reply ? reply.length : 0,
+          textContent: reply,
+          candidates: response.candidates,
+          finishReason: response.candidates?.[0]?.finishReason
+        });
+        return NextResponse.json({ 
+          error: 'No valid response received from Gemini',
+          details: 'The API returned an empty response'
+        }, { status: 500 });
+      }
+
+      return NextResponse.json({ reply });
+      
+    } catch (genError) {
+      console.error('[Gemini API] Generation error:', genError);
       return NextResponse.json({ 
-        error: 'No valid response received from Gemini',
-        details: 'The API returned an empty response'
+        error: 'Failed to generate content',
+        details: genError instanceof Error ? genError.message : 'Unknown generation error'
       }, { status: 500 });
     }
-
-    return NextResponse.json({ reply });
 
   } catch (error) {
     console.error("Gemini API Error:", error);
