@@ -146,6 +146,11 @@ export async function GET(request: NextRequest) {
 
           if (usersError) {
             console.error('Error creating user profile in users table:', usersError);
+            console.error('Error details:', {
+              message: usersError.message,
+              code: usersError.code,
+              details: usersError.details,
+            });
           } else {
             console.log('User profile created successfully in users table');
           }

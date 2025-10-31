@@ -170,14 +170,19 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     // Color blind support
     root.setAttribute('data-colorblind', newSettings.colorBlind);
 
-    // Sound settings
-    root.setAttribute('data-sound-enabled', newSettings.soundEnabled.toString());
-    root.setAttribute('data-sound-effects', newSettings.soundEffects.toString());
-    root.setAttribute('data-voice-guidance', newSettings.voiceGuidance.toString());
-    root.style.setProperty('--sound-volume', `${newSettings.soundVolume}%`);
+    // Sound settings (guard against undefined)
+    const soundEnabled = Boolean(newSettings.soundEnabled);
+    const soundEffects = Boolean(newSettings.soundEffects);
+    const voiceGuidance = Boolean(newSettings.voiceGuidance);
+    const soundVolume = Number.isFinite(newSettings.soundVolume) ? newSettings.soundVolume : 70;
+    root.setAttribute('data-sound-enabled', String(soundEnabled));
+    root.setAttribute('data-sound-effects', String(soundEffects));
+    root.setAttribute('data-voice-guidance', String(voiceGuidance));
+    root.style.setProperty('--sound-volume', `${soundVolume}%`);
 
-    // Notification settings
-    root.setAttribute('data-notifications-enabled', newSettings.notificationsEnabled.toString());
+    // Notification settings (guard against undefined)
+    const notificationsEnabled = Boolean(newSettings.notificationsEnabled);
+    root.setAttribute('data-notifications-enabled', String(notificationsEnabled));
   };
 
   const updateSetting = <K extends keyof AccessibilitySettings>(

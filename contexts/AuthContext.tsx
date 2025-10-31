@@ -191,15 +191,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('Profile data:', profile, 'Error:', error);
 
         if (error) {
-          console.error('Error fetching user profile:', error);
-          console.error('Error details:', {
-            message: error.message,
-            code: error.code,
-            details: error.details,
-            hint: error.hint
-          });
+          const normalizedError = (() => {
+            if (error instanceof Error) {
+              return {
+                message: error.message,
+                code: (error as any).code ?? undefined,
+                details: (error as any).details ?? undefined,
+                hint: (error as any).hint ?? undefined
+              };
+            }
+            if (typeof error === 'object' && error !== null) {
+              const anyErr: any = error;
+              return {
+                message: anyErr.message ?? JSON.stringify(anyErr),
+                code: anyErr.code ?? undefined,
+                details: anyErr.details ?? undefined,
+                hint: anyErr.hint ?? undefined
+              };
+            }
+            return { message: String(error) };
+          })();
+          // Only log non-intrusive warning in development with meaningful info
+          const shouldLog = process.env.NODE_ENV !== 'production' && (normalizedError.message || normalizedError.code);
+          if (shouldLog) {
+            console.warn('Profile fetch issue:', normalizedError);
+          }
           // If profile doesn't exist, create it
-          if (error.code === 'PGRST116') {
+          const errorCode = (typeof error === 'object' && error !== null && 'code' in (error as any)) ? (error as any).code : undefined;
+          if (errorCode === 'PGRST116') {
             console.log('Creating user profile...');
             
             // Try profiles table first, then fallback to users table
@@ -245,6 +264,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             
             if (createError) {
               console.error('Error creating user profile:', createError);
+              console.error('Error details:', {
+                message: createError.message,
+                code: createError.code,
+                details: createError.details,
+              });
               console.log('Continuing with auth user data despite profile creation error');
               setUser({
                 id: authUser.id,
@@ -271,7 +295,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           } else {
             console.error('Non-PGRST116 error fetching profile:', error);
-            setUser(null);
+            // Fallback: allow access with basic auth user data
+            setUser({
+              id: authUser.id,
+              email: authUser.email || "",
+              name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || "Guest",
+              level: 1,
+              total_xp: 0,
+              streak: 0,
+              learning_language: 'ar',
+              native_language: 'en'
+            });
           }
         } else if (profile) {
           console.log('User profile found:', profile);
@@ -309,6 +343,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      // Ensure downstream consumers can proceed (e.g., ProtectedRoute)
+      setAuthChecked(true);
     }
   };
 

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Eye, EyeOff, Mail, Lock, User, Globe, ArrowRight, Loader2, Check } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { getRedirectUrl } from '../../../lib/config';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const languages = [
   { code: 'en', name: 'English', flag: '🇺🇸', native: 'English' },
@@ -33,6 +34,7 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const router = useRouter();
+  const { refreshUser } = useAuth();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -171,6 +173,11 @@ export default function SignupPage() {
 
             if (usersError) {
               console.error('Error creating user profile:', usersError);
+              console.error('Error details:', {
+                message: usersError.message,
+                code: usersError.code,
+                details: usersError.details,
+              });
               // Continue anyway - the user is authenticated
             } else {
               console.log('User profile created successfully in users table');
@@ -184,9 +191,11 @@ export default function SignupPage() {
         }
       }
   
-      // Success: redirect to language selection
+      // Ensure auth context has the fresh session
+      try { await refreshUser(); } catch {}
+      // Success: redirect to dashboard
       setSuccess(true);
-      setTimeout(() => router.push('/language-selection'), 1500);
+      setTimeout(() => router.replace('/dashboard'), 1200);
   
     } catch (err) {
       setError('Unexpected error: ' + (err instanceof Error ? err.message : 'Unknown'));
@@ -233,7 +242,7 @@ export default function SignupPage() {
             </div>
             <h1 className="text-2xl font-bold text-white mb-2">Account Created!</h1>
             <p className="text-white/70 mb-6">
-              Welcome to your language learning journey! Redirecting to language selection...
+              Welcome to your language learning journey! Redirecting to dashboard...
             </p>
             <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
