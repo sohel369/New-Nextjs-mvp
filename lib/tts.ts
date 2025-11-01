@@ -168,8 +168,19 @@ export class GoogleTTS {
   }) {
     try {
       // Android: Use HTMLAudioElement instead of AudioContext for better compatibility
-      // Convert ArrayBuffer to Blob and create audio element
-      const blob = new Blob([audioBuffer], { type: 'audio/mp3' });
+      // Convert AudioBuffer to ArrayBuffer before creating Blob
+      let arrayBuffer: ArrayBuffer;
+      
+      if (audioBuffer instanceof AudioBuffer) {
+        // Convert AudioBuffer to ArrayBuffer
+        // Get the first channel data
+        const channelData = audioBuffer.getChannelData(0);
+        arrayBuffer = channelData.buffer;
+      } else {
+        arrayBuffer = audioBuffer; // already an ArrayBuffer
+      }
+      
+      const blob = new Blob([arrayBuffer], { type: 'audio/mp3' });
       const audioUrl = URL.createObjectURL(blob);
       const audio = new Audio(audioUrl);
       
