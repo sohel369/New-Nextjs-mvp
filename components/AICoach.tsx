@@ -421,16 +421,6 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
               </div>
             </div>
           )}
-          {audioLoading && (
-            <div className="flex justify-start">
-              <div className="bg-blue-700 text-white px-4 py-3 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Preparing audio...</span>
-                </div>
-              </div>
-            </div>
-          )}
           {audioError && (
             <div className="flex justify-start">
               <div className="bg-red-700 text-white px-4 py-3 rounded-lg">

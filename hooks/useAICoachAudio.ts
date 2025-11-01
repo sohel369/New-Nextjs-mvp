@@ -248,7 +248,11 @@ export function useAICoachAudio() {
       };
 
       utterance.onerror = (event) => {
-        console.error('Speech synthesis error:', event.error);
+        // "interrupted" is not a real error - it happens when speech is cancelled/stopped
+        // Only log actual errors
+        if (event.error !== 'interrupted' && event.error !== 'canceled') {
+          console.error('Speech synthesis error:', event.error);
+        }
         setIsPlaying(false);
         setIsPaused(false);
         controls.isPlaying = false;

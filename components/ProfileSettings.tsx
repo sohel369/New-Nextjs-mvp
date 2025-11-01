@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage, languages } from '../contexts/LanguageContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { supabase } from '../lib/supabase';
@@ -36,7 +36,7 @@ interface ProfileSettingsProps {
 
 export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsProps) {
   const { user, refreshUser } = useAuth();
-  const { setCurrentLanguage, languages } = useLanguage();
+  const { setCurrentLanguage } = useLanguage();
   const { updateSetting: updateAccessibilitySetting } = useAccessibility();
   const t = useTranslation();
   const [settings, setSettings] = useState<UserSettings>({
