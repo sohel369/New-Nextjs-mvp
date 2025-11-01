@@ -172,12 +172,6 @@ export default function SignupPage() {
               ]);
 
             if (usersError) {
-              console.error('Error creating user profile:', usersError);
-              console.error('Error details:', {
-                message: usersError.message,
-                code: usersError.code,
-                details: usersError.details,
-              });
               // Continue anyway - the user is authenticated
             } else {
               console.log('User profile created successfully in users table');
@@ -186,7 +180,6 @@ export default function SignupPage() {
             console.log('User profile created successfully in profiles table');
           }
         } catch (profileError) {
-          console.error('Unexpected error creating profile:', profileError);
           // Continue anyway - the user is authenticated
         }
       }

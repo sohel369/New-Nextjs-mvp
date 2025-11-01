@@ -263,13 +263,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             
             if (createError) {
-              console.error('Error creating user profile:', createError);
-              console.error('Error details:', {
-                message: createError.message,
-                code: createError.code,
-                details: createError.details,
-              });
-              console.log('Continuing with auth user data despite profile creation error');
               setUser({
                 id: authUser.id,
                 email: authUser.email || "",
@@ -294,7 +287,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               });
             }
           } else {
-            console.error('Non-PGRST116 error fetching profile:', error);
             // Fallback: allow access with basic auth user data
             setUser({
               id: authUser.id,

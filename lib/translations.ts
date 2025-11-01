@@ -75,6 +75,21 @@ export const translations = {
     chooseLanguageDescription: 'Choose your preferred language for the app interface',
     getHelp: 'Get help',
     sessions: 'Sessions',
+    
+    // Language Selection Page
+    chooseYourLanguages: 'Choose Your Languages',
+    selectInterfaceAndLearning: 'Select your interface language and the languages you want to learn',
+    interfaceLanguage: 'Interface Language',
+    interfaceLanguageDescription: 'Choose the language for the app interface (menus, buttons, etc.)',
+    learningLanguages: 'Learning Languages',
+    learningLanguagesDescription: 'Select one or more languages you want to learn. Lessons and quizzes will be filtered based on your selection.',
+    learningLanguagesTip: '💡 Tip: You can select multiple languages to learn simultaneously. Each language will have its own progress tracking.',
+    selectedLanguages: 'Selected Languages',
+    languageCount: 'language(s)',
+    changeLater: 'You can change these preferences later in your profile settings.',
+    saveAndContinue: 'Save & Continue',
+    saving: 'Saving...',
+    dontWorry: 'Don\'t worry, you can always change these settings later in your profile.',
   },
   
   ar: {
@@ -152,6 +167,21 @@ export const translations = {
     chooseLanguageDescription: 'اختر لغتك المفضلة لواجهة التطبيق',
     getHelp: 'احصل على مساعدة',
     sessions: 'جلسات',
+    
+    // Language Selection Page
+    chooseYourLanguages: 'اختر لغاتك',
+    selectInterfaceAndLearning: 'اختر لغة واجهة التطبيق واللغات التي تريد تعلمها',
+    interfaceLanguage: 'لغة الواجهة',
+    interfaceLanguageDescription: 'اختر اللغة لواجهة التطبيق (القوائم والأزرار وغيرها)',
+    learningLanguages: 'لغات التعلم',
+    learningLanguagesDescription: 'اختر لغة واحدة أو أكثر تريد تعلمها. سيتم تصفية الدروس والاختبارات بناءً على اختيارك.',
+    learningLanguagesTip: '💡 نصيحة: يمكنك اختيار عدة لغات للتعلم في نفس الوقت. كل لغة سيكون لها تتبع تقدم خاص بها.',
+    selectedLanguages: 'اللغات المحددة',
+    languageCount: 'لغة',
+    changeLater: 'يمكنك تغيير هذه التفضيلات لاحقاً في إعدادات ملفك الشخصي.',
+    saveAndContinue: 'حفظ والمتابعة',
+    saving: 'جاري الحفظ...',
+    dontWorry: 'لا تقلق، يمكنك دائماً تغيير هذه الإعدادات لاحقاً في ملفك الشخصي.',
   },
   
   nl: {

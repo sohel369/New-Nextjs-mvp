@@ -21,7 +21,21 @@ export async function sendMessage(message: string): Promise<string> {
       body: JSON.stringify({ message }),
     });
 
-    const data = await response.json();
+    // Check content type to detect HTML responses (404 pages)
+    const contentType = response.headers.get('content-type') || '';
+    const isJSON = contentType.includes('application/json');
+    
+    let data;
+    if (!isJSON) {
+      // Clone response to read text without consuming the stream
+      const text = await response.clone().text();
+      if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+        throw new Error('API routes are not available in static export mode. Please use development mode (npm run dev) or deploy with API routes support.');
+      }
+      throw new Error(`Unexpected response format: ${response.status} ${response.statusText}`);
+    }
+    
+    data = await response.json();
     
     if (!response.ok) {
       const errorData: ChatError = data;

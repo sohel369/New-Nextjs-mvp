@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
+import { useAccessibility } from '../contexts/AccessibilityContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { supabase } from '../lib/supabase';
 import SimpleNotificationPopup from './SimpleNotificationPopup';
@@ -33,7 +35,9 @@ interface ProfileSettingsProps {
 }
 
 export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsProps) {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const { setCurrentLanguage, languages } = useLanguage();
+  const { updateSetting: updateAccessibilitySetting } = useAccessibility();
   const t = useTranslation();
   const [settings, setSettings] = useState<UserSettings>({
     dark_mode: true,
@@ -51,15 +55,8 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
   const [success, setSuccess] = useState<string | null>(null);
   const [showNotificationPopup, setShowNotificationPopup] = useState(false);
 
-  const availableLanguages = [
-    { code: 'en', name: 'English', flag: '🇺🇸', native: 'English' },
-    { code: 'ar', name: 'Arabic', flag: '🇸🇦', native: 'العربية' },
-    { code: 'nl', name: 'Dutch', flag: '🇳🇱', native: 'Nederlands' },
-    { code: 'id', name: 'Indonesian', flag: '🇮🇩', native: 'Bahasa Indonesia' },
-    { code: 'ms', name: 'Malay', flag: '🇲🇾', native: 'Bahasa Melayu' },
-    { code: 'th', name: 'Thai', flag: '🇹🇭', native: 'ไทย' },
-    { code: 'km', name: 'Khmer', flag: '🇰🇭', native: 'ខ្មែរ' }
-  ];
+  // Use languages from LanguageContext to ensure consistency
+  const availableLanguages = languages;
 
   useEffect(() => {
     if (user) {
@@ -92,17 +89,36 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
         .eq('user_id', user?.id)
         .single();
 
-      if (settingsError) {
+      if (settingsError && settingsError.code !== 'PGRST116') {
         console.error('Error loading settings:', settingsError);
       } else if (userSettings) {
         setSettings({
-          dark_mode: userSettings.dark_mode,
-          notifications_enabled: userSettings.notifications_enabled,
-          sound_enabled: userSettings.sound_enabled,
-          auto_play_audio: userSettings.auto_play_audio,
-          high_contrast: userSettings.high_contrast,
-          large_text: userSettings.large_text
+          dark_mode: userSettings.dark_mode ?? true,
+          notifications_enabled: userSettings.notifications_enabled ?? true,
+          sound_enabled: userSettings.sound_enabled ?? true,
+          auto_play_audio: userSettings.auto_play_audio ?? true,
+          high_contrast: userSettings.high_contrast ?? false,
+          large_text: userSettings.large_text ?? false
         });
+      }
+      
+      // If no settings exist, create default settings
+      if (settingsError && settingsError.code === 'PGRST116') {
+        const { error: createError } = await supabase
+          .from('user_settings')
+          .insert({
+            user_id: user?.id,
+            dark_mode: true,
+            notifications_enabled: true,
+            sound_enabled: true,
+            auto_play_audio: true,
+            high_contrast: false,
+            large_text: false
+          });
+        
+        if (createError) {
+          console.error('Error creating default settings:', createError);
+        }
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -145,6 +161,21 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
       if (settingsError) {
         throw new Error('Failed to update settings');
       }
+
+      // Update language context if base language changed
+      const lang = languages.find(l => l.code === baseLanguage);
+      if (lang) {
+        setCurrentLanguage(lang);
+      }
+
+      // Update accessibility context with new settings
+      updateAccessibilitySetting('theme', settings.dark_mode ? 'dark' : 'light');
+      updateAccessibilitySetting('highContrast', settings.high_contrast);
+      updateAccessibilitySetting('notificationsEnabled', settings.notifications_enabled);
+      updateAccessibilitySetting('soundEnabled', settings.sound_enabled);
+
+      // Refresh user data to get latest settings
+      await refreshUser();
 
       setSuccess('Settings saved successfully!');
       onSettingsUpdate?.();

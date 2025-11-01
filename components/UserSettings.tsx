@@ -28,6 +28,24 @@ export default function UserSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
+  // Ensure settings have default values to prevent undefined errors
+  const safeSettings = {
+    soundEnabled: settings?.soundEnabled ?? true,
+    soundEffects: settings?.soundEffects ?? true,
+    voiceGuidance: settings?.voiceGuidance ?? true,
+    soundVolume: settings?.soundVolume ?? 70,
+    notificationsEnabled: settings?.notificationsEnabled ?? true,
+    learningReminders: settings?.learningReminders ?? true,
+    achievementNotifications: settings?.achievementNotifications ?? true,
+    liveSessionAlerts: settings?.liveSessionAlerts ?? false,
+    securityAlerts: settings?.securityAlerts ?? true,
+    theme: settings?.theme ?? 'dark',
+    fontSize: settings?.fontSize ?? 'medium',
+    highContrast: settings?.highContrast ?? false,
+    reducedMotion: settings?.reducedMotion ?? false,
+    screenReader: settings?.screenReader ?? false,
+  };
+
   const handleSave = async () => {
     if (!user) return;
     
@@ -115,7 +133,7 @@ export default function UserSettings() {
                   key={theme.value}
                   onClick={() => updateSetting('theme', theme.value as 'light' | 'dark' | 'system')}
                   className={`p-3 rounded-lg border-2 transition-all ${
-                    settings.theme === theme.value
+                    safeSettings.theme === theme.value
                       ? 'border-purple-500 bg-purple-500/20 text-white'
                       : 'border-white/20 bg-white/5 text-white/70 hover:border-white/40'
                   }`}
@@ -142,7 +160,7 @@ export default function UserSettings() {
                   key={size.value}
                   onClick={() => updateSetting('fontSize', size.value as 'small' | 'medium' | 'large' | 'xl')}
                   className={`p-2 rounded-lg border transition-all ${
-                    settings.fontSize === size.value
+                    safeSettings.fontSize === size.value
                       ? 'border-purple-500 bg-purple-500/20 text-white'
                       : 'border-white/20 bg-white/5 text-white/70 hover:border-white/40'
                   }`}
@@ -161,13 +179,13 @@ export default function UserSettings() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              {settings.soundEnabled ? <Volume2 className="w-5 h-5 text-white/70" /> : <VolumeX className="w-5 h-5 text-white/70" />}
+              {safeSettings.soundEnabled ? <Volume2 className="w-5 h-5 text-white/70" /> : <VolumeX className="w-5 h-5 text-white/70" />}
               <span className="text-white">Sound Effects</span>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input 
                 type="checkbox" 
-                checked={settings.soundEnabled} 
+                checked={safeSettings.soundEnabled} 
                 onChange={(e) => updateSetting('soundEnabled', e.target.checked)}
                 className="sr-only peer" 
               />
@@ -175,7 +193,7 @@ export default function UserSettings() {
             </label>
           </div>
 
-          {settings.soundEnabled && (
+          {safeSettings.soundEnabled && (
             <>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -185,7 +203,7 @@ export default function UserSettings() {
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
                     type="checkbox" 
-                    checked={settings.soundEffects} 
+                    checked={safeSettings.soundEffects} 
                     onChange={(e) => updateSetting('soundEffects', e.target.checked)}
                     className="sr-only peer" 
                   />
@@ -201,7 +219,7 @@ export default function UserSettings() {
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
                     type="checkbox" 
-                    checked={settings.voiceGuidance} 
+                    checked={safeSettings.voiceGuidance} 
                     onChange={(e) => updateSetting('voiceGuidance', e.target.checked)}
                     className="sr-only peer" 
                   />
@@ -215,13 +233,13 @@ export default function UserSettings() {
                   type="range"
                   min="0"
                   max="100"
-                  value={settings.soundVolume}
+                  value={safeSettings.soundVolume}
                   onChange={(e) => updateSetting('soundVolume', parseInt(e.target.value))}
                   className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
                 />
                 <div className="flex justify-between text-white/70 text-sm mt-1">
                   <span>0%</span>
-                  <span className="font-medium">{settings.soundVolume}%</span>
+                  <span className="font-medium">{safeSettings.soundVolume}%</span>
                   <span>100%</span>
                 </div>
               </div>
@@ -236,13 +254,13 @@ export default function UserSettings() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              {settings.notificationsEnabled ? <Bell className="w-5 h-5 text-white/70" /> : <BellOff className="w-5 h-5 text-white/70" />}
+              {safeSettings.notificationsEnabled ? <Bell className="w-5 h-5 text-white/70" /> : <BellOff className="w-5 h-5 text-white/70" />}
               <span className="text-white">All Notifications</span>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input 
                 type="checkbox" 
-                checked={settings.notificationsEnabled} 
+                checked={safeSettings.notificationsEnabled} 
                 onChange={(e) => updateSetting('notificationsEnabled', e.target.checked)}
                 className="sr-only peer" 
               />
@@ -250,7 +268,7 @@ export default function UserSettings() {
             </label>
           </div>
 
-          {settings.notificationsEnabled && (
+          {safeSettings.notificationsEnabled && (
             <>
               <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
                 <div className="flex items-center space-x-3">
@@ -260,7 +278,7 @@ export default function UserSettings() {
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
                     type="checkbox" 
-                    checked={settings.learningReminders} 
+                    checked={safeSettings.learningReminders} 
                     onChange={(e) => updateSetting('learningReminders', e.target.checked)}
                     className="sr-only peer" 
                   />
@@ -276,7 +294,7 @@ export default function UserSettings() {
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
                     type="checkbox" 
-                    checked={settings.achievementNotifications} 
+                    checked={safeSettings.achievementNotifications} 
                     onChange={(e) => updateSetting('achievementNotifications', e.target.checked)}
                     className="sr-only peer" 
                   />
@@ -292,7 +310,7 @@ export default function UserSettings() {
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
                     type="checkbox" 
-                    checked={settings.liveSessionAlerts} 
+                    checked={safeSettings.liveSessionAlerts} 
                     onChange={(e) => updateSetting('liveSessionAlerts', e.target.checked)}
                     className="sr-only peer" 
                   />
@@ -308,7 +326,7 @@ export default function UserSettings() {
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
                     type="checkbox" 
-                    checked={settings.securityAlerts} 
+                    checked={safeSettings.securityAlerts} 
                     onChange={(e) => updateSetting('securityAlerts', e.target.checked)}
                     className="sr-only peer" 
                   />
@@ -326,13 +344,13 @@ export default function UserSettings() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              {settings.highContrast ? <Eye className="w-5 h-5 text-white/70" /> : <EyeOff className="w-5 h-5 text-white/70" />}
+              {safeSettings.highContrast ? <Eye className="w-5 h-5 text-white/70" /> : <EyeOff className="w-5 h-5 text-white/70" />}
               <span className="text-white">High Contrast</span>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input 
                 type="checkbox" 
-                checked={settings.highContrast} 
+                checked={safeSettings.highContrast} 
                 onChange={(e) => updateSetting('highContrast', e.target.checked)}
                 className="sr-only peer" 
               />
@@ -348,7 +366,7 @@ export default function UserSettings() {
             <label className="relative inline-flex items-center cursor-pointer">
               <input 
                 type="checkbox" 
-                checked={settings.reducedMotion} 
+                checked={safeSettings.reducedMotion} 
                 onChange={(e) => updateSetting('reducedMotion', e.target.checked)}
                 className="sr-only peer" 
               />
@@ -364,7 +382,7 @@ export default function UserSettings() {
             <label className="relative inline-flex items-center cursor-pointer">
               <input 
                 type="checkbox" 
-                checked={settings.screenReader} 
+                checked={safeSettings.screenReader} 
                 onChange={(e) => updateSetting('screenReader', e.target.checked)}
                 className="sr-only peer" 
               />

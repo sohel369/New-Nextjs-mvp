@@ -25,13 +25,11 @@ export class NotificationService {
         .single();
 
       if (error) {
-        console.error('Error creating notification:', error);
         throw error;
       }
 
       return notification;
     } catch (error) {
-      console.error('Error creating notification:', error);
       throw error;
     }
   }
@@ -59,13 +57,11 @@ export class NotificationService {
         .select();
 
       if (error) {
-        console.error('Error creating bulk notifications:', error);
         throw error;
       }
 
       return data;
     } catch (error) {
-      console.error('Error creating bulk notifications:', error);
       throw error;
     }
   }
@@ -85,7 +81,6 @@ export class NotificationService {
         .select('id');
 
       if (usersError) {
-        console.error('Error fetching users:', usersError);
         throw usersError;
       }
 
@@ -96,7 +91,6 @@ export class NotificationService {
       const userIds = users.map(user => user.id);
       return await this.createBulkNotifications(userIds, title, message, type);
     } catch (error) {
-      console.error('Error creating global notification:', error);
       throw error;
     }
   }
@@ -113,11 +107,9 @@ export class NotificationService {
         .eq('user_id', userId);
 
       if (error) {
-        console.error('Error marking notification as read:', error);
         throw error;
       }
     } catch (error) {
-      console.error('Error marking notification as read:', error);
       throw error;
     }
   }
@@ -134,11 +126,9 @@ export class NotificationService {
         .eq('read', false);
 
       if (error) {
-        console.error('Error marking all notifications as read:', error);
         throw error;
       }
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
       throw error;
     }
   }
@@ -155,11 +145,9 @@ export class NotificationService {
         .eq('user_id', userId);
 
       if (error) {
-        console.error('Error deleting notification:', error);
         throw error;
       }
     } catch (error) {
-      console.error('Error deleting notification:', error);
       throw error;
     }
   }
@@ -177,13 +165,11 @@ export class NotificationService {
         .limit(limit);
 
       if (error) {
-        console.error('Error fetching notifications:', error);
         throw error;
       }
 
       return data;
     } catch (error) {
-      console.error('Error fetching notifications:', error);
       throw error;
     }
   }
@@ -200,13 +186,11 @@ export class NotificationService {
         .eq('read', false);
 
       if (error) {
-        console.error('Error fetching unread count:', error);
         throw error;
       }
 
       return count || 0;
     } catch (error) {
-      console.error('Error fetching unread count:', error);
       throw error;
     }
   }

@@ -24,6 +24,19 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "LinguaAI - Smart Language Learning",
   description: "Learn languages with AI-powered adaptive learning, interactive quizzes, and progress tracking.",
+  manifest: "/manifest.json",
+  themeColor: "#3b82f6",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "LinguaAI",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
 };
 
 export default function RootLayout({

@@ -76,6 +76,18 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const response = await fetch(`/api/settings?userId=${user.id}`);
+      
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type') || '';
+      const isJSON = contentType.includes('application/json');
+      
+      if (!isJSON) {
+        // API routes not available (static export mode)
+        console.warn('API routes not available, using localStorage fallback');
+        loadSettingsFromLocalStorage();
+        return;
+      }
+      
       const data = await response.json();
       
       if (data.success && data.data) {
@@ -102,7 +114,12 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
         });
       }
     } catch (error) {
-      console.error('Error loading settings from database:', error);
+      // Network error or API routes not available - fallback to localStorage
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        console.warn('Network error or API routes not available, using localStorage fallback');
+      } else {
+        console.error('Error loading settings from database:', error);
+      }
       loadSettingsFromLocalStorage();
     } finally {
       setLoading(false);
@@ -238,6 +255,16 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
           }
         })
       });
+
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type') || '';
+      const isJSON = contentType.includes('application/json');
+      
+      if (!isJSON) {
+        // API routes not available, settings saved to localStorage instead
+        console.warn('API routes not available, settings saved to localStorage');
+        return;
+      }
 
       const data = await response.json();
       if (!data.success) {

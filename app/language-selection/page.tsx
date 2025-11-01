@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage, languages } from '../../contexts/LanguageContext';
+import { useTranslation } from '../../hooks/useTranslation';
 import { supabase } from '../../lib/supabase';
 import { 
   Globe, 
@@ -15,21 +17,16 @@ import {
 
 export default function LanguageSelectionPage() {
   const { user } = useAuth();
+  const { currentLanguage, setCurrentLanguage, isRTL } = useLanguage();
+  const t = useTranslation();
   const router = useRouter();
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(['en']);
   const [baseLanguage, setBaseLanguage] = useState<string>('en');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const availableLanguages = [
-    { code: 'en', name: 'English', flag: '🇺🇸', native: 'English' },
-    { code: 'ar', name: 'Arabic', flag: '🇸🇦', native: 'العربية' },
-    { code: 'nl', name: 'Dutch', flag: '🇳🇱', native: 'Nederlands' },
-    { code: 'id', name: 'Indonesian', flag: '🇮🇩', native: 'Bahasa Indonesia' },
-    { code: 'ms', name: 'Malay', flag: '🇲🇾', native: 'Bahasa Melayu' },
-    { code: 'th', name: 'Thai', flag: '🇹🇭', native: 'ไทย' },
-    { code: 'km', name: 'Khmer', flag: '🇰🇭', native: 'ខ្មែរ' }
-  ];
+  // Use languages from LanguageContext which includes isRTL
+  const availableLanguages = languages;
 
   useEffect(() => {
     if (!user) {
@@ -50,6 +47,14 @@ export default function LanguageSelectionPage() {
       }
     });
   };
+
+  // Update current language when base language changes
+  useEffect(() => {
+    const lang = availableLanguages.find(l => l.code === baseLanguage);
+    if (lang && lang.isRTL !== undefined) {
+      setCurrentLanguage(lang);
+    }
+  }, [baseLanguage, availableLanguages]);
 
   const handleSaveAndContinue = async () => {
     if (!user) return;
@@ -102,8 +107,6 @@ export default function LanguageSelectionPage() {
     }
   };
 
-  const isRTL = baseLanguage === 'ar';
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="w-full max-w-4xl">
@@ -114,20 +117,20 @@ export default function LanguageSelectionPage() {
               <Globe className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">
-              Choose Your Languages
+              {t('chooseYourLanguages')}
             </h1>
             <p className="text-white/70 text-lg">
-              Select your interface language and the languages you want to learn
+              {t('selectInterfaceAndLearning')}
             </p>
           </div>
 
           {/* Base Language Selection */}
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-white mb-4">
-              Interface Language
+              {t('interfaceLanguage')}
             </h2>
             <p className="text-white/70 mb-4">
-              Choose the language for the app interface (menus, buttons, etc.)
+              {t('interfaceLanguageDescription')}
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {availableLanguages.map((lang) => (
@@ -156,14 +159,14 @@ export default function LanguageSelectionPage() {
           {/* Learning Languages Selection */}
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-white mb-4">
-              Learning Languages
+              {t('learningLanguages')}
             </h2>
             <p className="text-white/70 mb-4">
-              Select one or more languages you want to learn. Lessons and quizzes will be filtered based on your selection.
+              {t('learningLanguagesDescription')}
             </p>
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
               <p className="text-blue-300 text-sm">
-                💡 <strong>Tip:</strong> You can select multiple languages to learn simultaneously. Each language will have its own progress tracking.
+                {t('learningLanguagesTip')}
               </p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -190,7 +193,7 @@ export default function LanguageSelectionPage() {
             </div>
             <div className="mt-4 p-3 bg-white/5 rounded-lg">
               <p className="text-white/70 text-sm">
-                <strong>Selected Languages:</strong> {selectedLanguages.length} language(s)
+                <strong>{t('selectedLanguages')}:</strong> {selectedLanguages.length} {t('languageCount')}
               </p>
               <div className="flex flex-wrap gap-2 mt-2">
                 {selectedLanguages.map(langCode => {
@@ -204,7 +207,7 @@ export default function LanguageSelectionPage() {
               </div>
             </div>
             <p className="text-white/60 text-sm mt-2">
-              You can change these preferences later in your profile settings.
+              {t('changeLater')}
             </p>
           </div>
 
@@ -222,23 +225,23 @@ export default function LanguageSelectionPage() {
           <div className="flex items-center justify-between">
             <button
               onClick={() => router.back()}
-              className="flex items-center space-x-2 text-white/70 hover:text-white transition-colors"
+              className={`flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'} text-white/70 hover:text-white transition-colors`}
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back</span>
+              <span>{t('back')}</span>
             </button>
             
             <button
               onClick={handleSaveAndContinue}
               disabled={saving}
-              className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-3 px-8 rounded-lg transition-colors flex items-center space-x-2"
+              className={`bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-3 px-8 rounded-lg transition-colors flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'}`}
             >
               {saving ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 <Save className="w-4 h-4" />
               )}
-              <span>{saving ? 'Saving...' : 'Save & Continue'}</span>
+              <span>{saving ? t('saving') : t('saveAndContinue')}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -247,7 +250,7 @@ export default function LanguageSelectionPage() {
         {/* Help Text */}
         <div className="text-center mt-6">
           <p className="text-white/50 text-sm">
-            Don't worry, you can always change these settings later in your profile.
+            {t('dontWorry')}
           </p>
         </div>
       </div>

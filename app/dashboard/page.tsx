@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { 
   BookOpen, 
@@ -22,6 +22,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useGlobalNotifications } from '../../hooks/useGlobalNotifications';
+import { useEnhancedNotifications } from '../../contexts/EnhancedNotificationContext';
 import { languages } from '../../contexts/LanguageContext';
 import { NotificationBell } from '../../components/NotificationBell';
 import BottomNavigation from '../../components/BottomNavigation';
@@ -29,12 +30,14 @@ import ProtectedRoute from '../../components/ProtectedRoute';
 import DashboardNotificationPopup from '../../components/DashboardNotificationPopup';
 import SettingsModal from '../../components/SettingsModal';
 import Layout from '../../components/Layout';
+import { NotificationService } from '../../utils/notificationService';
 
 export default function DashboardPage() {
   const { user, loading, authChecked } = useAuth();
   const { currentLanguage, setCurrentLanguage, isRTL } = useLanguage();
   const { settings } = useSettings();
   const { showNotificationWithSound } = useGlobalNotifications();
+  const { showNotification: showEnhancedNotification, showBrowserNotification } = useEnhancedNotifications();
   const t = useTranslation();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
   const [showNotificationPopup, setShowNotificationPopup] = useState(false);
@@ -56,22 +59,54 @@ export default function DashboardPage() {
     }
   };
 
-  // Function to show notification popup
-  const showNotification = (title: string, message: string, type: 'success' | 'info' | 'warning' | 'error' = 'info') => {
+  // Function to show notification popup and save to persistent notification system
+  const showNotification = useCallback(async (title: string, message: string, type: 'success' | 'info' | 'warning' | 'error' = 'info', notificationId?: string) => {
+    const id = notificationId || `${title}-${Date.now()}`;
+
+    // Show popup
     setCurrentNotification({ title, message, type });
     setShowNotificationPopup(true);
+
+    // Save to enhanced notification system (Supabase) if user is logged in
+    if (user) {
+      try {
+        // Use NotificationService to create persistent notification
+        await NotificationService.createNotification({
+          user_id: user.id,
+          title,
+          message,
+          type,
+        });
+
+        // Also use enhanced notification context to show it immediately
+        showEnhancedNotification({
+          type: type as 'success' | 'info' | 'warning' | 'error',
+          title,
+          message,
+          priority: type === 'error' || type === 'warning' ? 'high' : type === 'success' ? 'medium' : 'low',
+        });
+      } catch (error) {
+        // Fallback: still show browser notification even if database fails
+      }
+    }
     
-    // Also show browser notification if enabled
+    // Show browser notification if enabled
     if (settings?.notifications_enabled) {
       showNotificationWithSound({
         title,
         body: message,
         icon: '/favicon.ico',
-        tag: `dashboard-${type}`,
+        tag: `dashboard-${type}-${id}`,
         requireInteraction: type === 'error' || type === 'warning',
       });
     }
-  };
+
+    // Also show browser notification via enhanced context
+    showBrowserNotification(title, {
+      body: message,
+      icon: '/favicon.ico',
+    });
+  }, [user, settings?.notifications_enabled, showEnhancedNotification, showBrowserNotification, showNotificationWithSound]);
 
   // Debug language changes
   useEffect(() => {
@@ -81,41 +116,67 @@ export default function DashboardPage() {
     console.log('Dashboard: document.lang:', document.documentElement.lang);
   }, [currentLanguage, isRTL]);
 
-  // Simulate notifications for demonstration
+  // Dashboard-specific notifications
   useEffect(() => {
-    // Show welcome notification after 2 seconds
+    if (!user || !authChecked) return;
+
+    const timers: NodeJS.Timeout[] = [];
+
+    // Show welcome notification after 1 second (only once per session)
+    const welcomeNotificationId = `dashboard-welcome-${user.id}`;
+    const hasShownWelcome = sessionStorage.getItem(welcomeNotificationId);
+    
+    if (!hasShownWelcome) {
     const welcomeTimer = setTimeout(() => {
       showNotification(
         'Welcome to LinguaAI! 🎉',
-        'Start your language learning journey with personalized lessons and AI-powered guidance.',
-        'success'
-      );
-    }, 2000);
+          `Welcome back, ${user.email || 'learner'}! Start your language learning journey with personalized lessons and AI-powered guidance.`,
+          'success',
+          welcomeNotificationId
+        );
+        sessionStorage.setItem(welcomeNotificationId, 'true');
+      }, 1000);
+      timers.push(welcomeTimer);
+    }
 
-    // Show daily reminder after 8 seconds
+    // Show daily reminder notification (check if already shown today)
+    const dailyReminderId = `dashboard-daily-reminder-${new Date().toDateString()}-${user.id}`;
+    const hasShownDailyReminder = localStorage.getItem(dailyReminderId);
+    
+    if (!hasShownDailyReminder) {
     const reminderTimer = setTimeout(() => {
       showNotification(
         'Daily Learning Reminder ⏰',
-        'Keep your streak alive! Complete a lesson today to maintain your progress.',
-        'info'
-      );
-    }, 8000);
+          'Keep your streak alive! Complete a lesson today to maintain your progress and unlock achievements.',
+          'info',
+          dailyReminderId
+        );
+        localStorage.setItem(dailyReminderId, 'true');
+      }, 5000);
+      timers.push(reminderTimer);
+    }
 
-    // Show achievement notification after 15 seconds
-    const achievementTimer = setTimeout(() => {
+    // Show tip notification after 10 seconds (only once per session)
+    const tipsShownKey = `dashboard-tips-shown-${user.id}`;
+    const tipsShown = sessionStorage.getItem(tipsShownKey);
+
+    if (!tipsShown) {
+      const tipTimer = setTimeout(() => {
       showNotification(
-        'Achievement Unlocked! 🏆',
-        'Congratulations! You\'ve completed your first lesson. Keep up the great work!',
-        'success'
-      );
-    }, 15000);
+          'Pro Tip 💡',
+          'Try using the AI Coach feature to practice conversations and get personalized feedback on your progress.',
+          'info',
+          `dashboard-tip-${Date.now()}`
+        );
+        sessionStorage.setItem(tipsShownKey, 'true');
+      }, 10000);
+      timers.push(tipTimer);
+    }
 
     return () => {
-      clearTimeout(welcomeTimer);
-      clearTimeout(reminderTimer);
-      clearTimeout(achievementTimer);
+      timers.forEach(timer => clearTimeout(timer));
     };
-  }, []);
+  }, [user, authChecked, showNotification]);
 
   // Show loading only if auth hasn't been checked yet
   if (!authChecked) {
@@ -148,16 +209,6 @@ export default function DashboardPage() {
               </div>
               
               <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-2 sm:space-x-3' : 'space-x-2 sm:space-x-3'}`}>
-                <button
-                  onClick={() => showNotification(
-                    'Test Notification 🔔',
-                    'This is a test notification to demonstrate the popup functionality.',
-                    'info'
-                  )}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-2 py-1 rounded-lg text-xs transition-colors"
-                >
-                  Test
-                </button>
                 <NotificationBell />
                 <button
                   onClick={() => setShowSettingsModal(true)}
@@ -210,16 +261,6 @@ export default function DashboardPage() {
                   </button>
                 </div>
                 
-                <button
-                  onClick={() => showNotification(
-                    'Test Notification 🔔',
-                    'This is a test notification to demonstrate the popup functionality.',
-                    'info'
-                  )}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-lg text-sm transition-colors"
-                >
-                  Test Notify
-                </button>
                 <Globe className="w-6 h-6 text-white/70 hover:text-white transition-colors cursor-pointer" />
                 <NotificationBell />
                 <button

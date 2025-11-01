@@ -101,6 +101,22 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       const response = await fetch(`/api/settings?userId=${user.id}`);
+      
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type') || '';
+      const isJSON = contentType.includes('application/json');
+      
+      if (!isJSON) {
+        // API routes not available (static export mode) - use localStorage fallback
+        console.warn('API routes not available, using localStorage fallback');
+        const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
+        const savedFontSize = localStorage.getItem('fontSize') as 'small' | 'medium' | 'large' | 'xl' | null;
+        if (savedTheme) applyTheme(savedTheme);
+        if (savedFontSize) applyFontSize(savedFontSize);
+        setSettings(defaultSettings as UserSettings);
+        return;
+      }
+      
       const result = await response.json();
 
       if (result.success && result.data) {
@@ -113,7 +129,16 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         await createDefaultSettings();
       }
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      // Network error or API routes not available - fallback to localStorage/defaults
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        console.warn('Network error or API routes not available, using localStorage fallback');
+        const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
+        const savedFontSize = localStorage.getItem('fontSize') as 'small' | 'medium' | 'large' | 'xl' | null;
+        if (savedTheme) applyTheme(savedTheme);
+        if (savedFontSize) applyFontSize(savedFontSize);
+      } else {
+        console.error('Error fetching settings:', error);
+      }
       // Fallback to default settings
       setSettings(defaultSettings as UserSettings);
     } finally {
@@ -134,6 +159,19 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ userId: user.id }),
       });
 
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type') || '';
+      const isJSON = contentType.includes('application/json');
+      
+      if (!isJSON) {
+        // API routes not available, use default settings
+        console.warn('API routes not available, using default settings');
+        setSettings(defaultSettings as UserSettings);
+        applyTheme(defaultSettings.theme!);
+        applyFontSize(defaultSettings.font_size!);
+        return;
+      }
+
       const result = await response.json();
       if (result.success && result.data) {
         setSettings(result.data);
@@ -141,7 +179,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         applyFontSize(result.data.font_size);
       }
     } catch (error) {
-      console.error('Error creating default settings:', error);
+      // Network error or API routes not available
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        console.warn('Network error or API routes not available, using default settings locally');
+        setSettings(defaultSettings as UserSettings);
+        applyTheme(defaultSettings.theme!);
+        applyFontSize(defaultSettings.font_size!);
+      } else {
+        console.error('Error creating default settings:', error);
+      }
     }
   };
 
@@ -162,6 +208,20 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           settings: newSettings,
         }),
       });
+
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type') || '';
+      const isJSON = contentType.includes('application/json');
+      
+      if (!isJSON) {
+        // API routes not available, update local state only
+        console.warn('API routes not available, settings updated locally');
+        setSettings({ ...settings, ...newSettings } as UserSettings);
+        if (newSettings.theme) applyTheme(newSettings.theme);
+        if (newSettings.font_size) applyFontSize(newSettings.font_size);
+        applyNotificationSettings(newSettings);
+        return true;
+      }
 
       const result = await response.json();
       
@@ -185,7 +245,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         return false;
       }
     } catch (error) {
-      console.error('Error updating settings:', error);
+      // Network error or API routes not available - update locally only
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        console.warn('Network error or API routes not available, settings updated locally');
+        setSettings({ ...settings, ...newSettings } as UserSettings);
+        if (newSettings.theme) applyTheme(newSettings.theme);
+        if (newSettings.font_size) applyFontSize(newSettings.font_size);
+        applyNotificationSettings(newSettings);
+        return true;
+      } else {
+        console.error('Error updating settings:', error);
+      }
       return false;
     }
   };
