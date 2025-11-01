@@ -1,4 +1,5 @@
 import type { CapacitorConfig } from '@capacitor/cli';
+import { KeyboardStyle } from '@capacitor/keyboard';
 
 const config: CapacitorConfig = {
   appId: 'com.language.linguaai',
@@ -27,7 +28,7 @@ const config: CapacitorConfig = {
       backgroundColor: '#1e1b4b',
     },
     Keyboard: {
-      style: 'dark',
+      style: KeyboardStyle.Dark,
       resizeOnFullScreen: true,
     },
   },
