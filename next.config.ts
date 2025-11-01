@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 import { config } from 'dotenv';
 import path from 'path';
-import withPWA from 'next-pwa';
 
 // Load environment variables from local.env
 config({ path: path.resolve(process.cwd(), 'local.env') });
@@ -27,28 +26,36 @@ const nextConfig: NextConfig = {
   }),
 };
 
-// PWA configuration
-const pwaConfig = {
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  // Disable PWA in development to avoid Webpack/Turbopack conflicts
-  disable: process.env.NODE_ENV === 'development',
-  // Exclude middleware manifest from PWA build
-  buildExcludes: [/middleware-manifest\.json$/],
-  runtimeCaching: [
-    {
-      urlPattern: /^https?.*/,
-      handler: 'NetworkFirst',
-      options: {
-        cacheName: 'offlineCache',
-        expiration: {
-          maxEntries: 200,
-        },
-      },
-    },
-  ],
-};
+// PWA configuration - conditionally apply to avoid Next.js 15 compatibility issues
+let configToExport = nextConfig;
 
-// Wrap with PWA configuration
-export default withPWA(pwaConfig)(nextConfig);
+// Only apply PWA in production builds (not during development or static export)
+if (process.env.NODE_ENV === 'production' && !enableStaticExport) {
+  try {
+    // Use dynamic require to handle compatibility issues
+    const withPWA = require('next-pwa')({
+      dest: 'public',
+      register: true,
+      skipWaiting: true,
+      // Exclude middleware manifest from PWA build
+      buildExcludes: [/middleware-manifest\.json$/],
+      runtimeCaching: [
+        {
+          urlPattern: /^https?.*/,
+          handler: 'NetworkFirst',
+          options: {
+            cacheName: 'offlineCache',
+            expiration: {
+              maxEntries: 200,
+            },
+          },
+        },
+      ],
+    });
+    configToExport = withPWA(nextConfig);
+  } catch (error) {
+    console.warn('Failed to load next-pwa, continuing without PWA support:', error);
+  }
+}
+
+export default configToExport;

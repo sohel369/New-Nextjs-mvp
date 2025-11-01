@@ -51,11 +51,12 @@
   },
   "overrides": {
     "sourcemap-codec": "npm:@jridgewell/sourcemap-codec@^1.5.5",
-    "rollup-plugin-terser": "npm:@rollup/plugin-terser@^11.0.0",
-    "rimraf": "^5.0.5",
-    "glob": "^10.3.10",
+    "rollup-plugin-terser": "npm:@rollup/plugin-terser@^0.4.4",
+    "rimraf": "^6.1.0",
+    "glob": "^11.0.3",
+    "pify": "^6.1.0",
     "workbox-build": {
-      "rollup-plugin-terser": "npm:@rollup/plugin-terser@^11.0.0",
+      "rollup-plugin-terser": "npm:@rollup/plugin-terser@^0.4.4",
       "sourcemap-codec": "npm:@jridgewell/sourcemap-codec@^1.5.5"
     }
   }
