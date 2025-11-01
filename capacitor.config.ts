@@ -27,7 +27,6 @@ const config: CapacitorConfig = {
       backgroundColor: '#1e1b4b',
     },
     Keyboard: {
-      resize: 'body',
       style: 'dark',
       resizeOnFullScreen: true,
     },
@@ -38,25 +37,12 @@ const config: CapacitorConfig = {
       keystorePath: undefined,
       keystoreAlias: undefined,
     },
-    permissions: [
-      'RECORD_AUDIO',
-      'MODIFY_AUDIO_SETTINGS',
-      'INTERNET',
-      'ACCESS_NETWORK_STATE',
-      'ACCESS_WIFI_STATE',
-      'VIBRATE',
-      'WAKE_LOCK',
-    ],
   },
   ios: {
     scheme: 'LinguaAI',
     allowsLinkPreview: false,
     scrollEnabled: true,
     contentInset: 'automatic',
-    permissions: [
-      'Microphone',
-      'SpeechRecognition',
-    ],
   },
 };
 
