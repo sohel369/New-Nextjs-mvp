@@ -1,12 +1,29 @@
 {
-  "name": "Language Learning Quiz System",
-  "short_name": "LangQuiz",
-  "description": "Interactive language learning quiz with multiple languages and difficulty levels",
+  "name": "LinguaAI - Smart Language Learning",
+  "short_name": "LinguaAI",
+  "description": "Learn languages with AI-powered adaptive learning, interactive quizzes, and progress tracking",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1e1b4b",
   "theme_color": "#3b82f6",
   "orientation": "portrait-primary",
+  "scope": "/",
+  "shortcuts": [
+    {
+      "name": "AI Coach",
+      "short_name": "AI Coach",
+      "description": "Practice with AI language coach",
+      "url": "/ai-coach",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Lessons",
+      "short_name": "Lessons",
+      "description": "Start learning",
+      "url": "/lessons",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192x192.png",

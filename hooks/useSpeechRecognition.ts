@@ -32,15 +32,45 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
 				return false;
 			}
 			
-			// Proactively prompt for mic permission
-			await navigator.mediaDevices.getUserMedia({ audio: true });
+			// Check for existing permission first (Android Chrome)
+			try {
+				if ('permissions' in navigator && 'query' in navigator.permissions) {
+					const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+					if (permissionStatus.state === 'granted') {
+						setPermission('granted');
+						return true;
+					} else if (permissionStatus.state === 'denied') {
+						setPermission('denied');
+						return false;
+					}
+				}
+			} catch (permErr) {
+				// Permissions API may not be supported, continue with getUserMedia
+				console.log('[Speech] Permissions API not available, using getUserMedia');
+			}
+			
+			// Proactively prompt for mic permission with Android-optimized constraints
+			const stream = await navigator.mediaDevices.getUserMedia({ 
+				audio: {
+					echoCancellation: true,
+					noiseSuppression: true,
+					autoGainControl: true,
+					sampleRate: 16000 // Better for speech recognition on mobile
+				} 
+			});
+			
+			// Stop the stream immediately - we just needed permission
+			stream.getTracks().forEach(track => track.stop());
+			
 			setPermission('granted');
 			console.log('[Speech] Microphone permission granted');
 			return true;
-		} catch (e) {
+		} catch (e: any) {
 			console.error('[Speech] Microphone permission denied:', e);
 			setPermission('denied');
-			console.warn('[Speech] Continuing without microphone permission - SpeechRecognition may still work');
+			// On Android, SpeechRecognition might still work even if getUserMedia fails
+			// because the browser handles permissions differently
+			console.warn('[Speech] Continuing without explicit permission - SpeechRecognition may still work on Android');
 			return false;
 		}
 	}, []);
@@ -72,12 +102,27 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
 		}
 
 		try {
+			// Stop any existing recognition first (important for Android)
+			if (recognitionRef.current) {
+				try {
+					recognitionRef.current.stop();
+				} catch (stopErr) {
+					// Ignore errors when stopping
+				}
+				recognitionRef.current = null;
+			}
+
 			const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 			const recognition = new SpeechRecognitionCtor();
 			recognitionRef.current = recognition;
 			recognition.lang = language;
 			recognition.continuous = continuous;
 			recognition.interimResults = interimResults;
+
+			// Android-specific: Set service URI for better compatibility
+			if ((navigator as any).userAgentData?.mobile || /Android/i.test(navigator.userAgent)) {
+				console.log('[Speech] Android detected, applying mobile optimizations');
+			}
 
 			recognition.onstart = () => {
 				setIsListening(true);
@@ -95,26 +140,45 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
 				// Handle different error types appropriately
 				if (errorType === 'not-allowed') {
 					console.warn('[Speech] Microphone access denied by user - please allow microphone access');
-					setError('Microphone access denied. Please allow microphone access and try again.');
+					setError('Microphone access denied. Please allow microphone access in your browser settings and try again.');
 				} else if (errorType === 'no-speech') {
 					console.warn('[Speech] No speech detected - try speaking louder');
-					setError('No speech detected. Please try speaking louder.');
+					// Don't set error for no-speech on Android - it's common during pauses
+					if (!/Android/i.test(navigator.userAgent)) {
+						setError('No speech detected. Please try speaking louder.');
+					}
+					setIsListening(false);
 				} else if (errorType === 'audio-capture') {
 					console.warn('[Speech] Audio capture failed - check microphone');
-					setError('Audio capture failed. Please check your microphone.');
+					setError('Audio capture failed. Please check your microphone is working and try again.');
 				} else if (errorType === 'network') {
 					console.warn('[Speech] Network error - check internet connection');
-					setError('Network error. Please check your internet connection.');
+					setError('Network error. Please check your internet connection and try again.');
+				} else if (errorType === 'aborted') {
+					// Aborted is not an error - user or system stopped it
+					console.log('[Speech] Recognition aborted');
+					setIsListening(false);
 				} else {
 					console.error('[Speech] Unexpected error:', errorType);
 					setError(errorType || 'speech-error');
 				}
 				
-				setIsListening(false);
+				if (errorType !== 'no-speech' && errorType !== 'aborted') {
+					setIsListening(false);
+				}
 			};
 
-			recognition.start();
-			console.log('[Speech] recognition.start() called with', { language, continuous, interimResults });
+			// Android: Add a small delay to ensure recognition is ready
+			setTimeout(() => {
+				try {
+					recognition.start();
+					console.log('[Speech] recognition.start() called with', { language, continuous, interimResults });
+				} catch (startErr: any) {
+					console.error('[Speech] Failed to start recognition:', startErr);
+					setError(startErr?.message || 'Failed to start speech recognition. Please try again.');
+					setIsListening(false);
+				}
+			}, 100);
 		} catch (e: any) {
 			console.error('[Speech] Failed to start recognition:', e);
 			setError(e?.message || 'failed-to-start');

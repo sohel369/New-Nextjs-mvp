@@ -100,7 +100,7 @@ export class GoogleTTS {
       const data = await response.json();
       
       if (data.audioContent) {
-        // Convert base64 to audio buffer
+        // Convert base64 to ArrayBuffer (for better mobile compatibility)
         const audioData = atob(data.audioContent);
         const audioBuffer = new ArrayBuffer(audioData.length);
         const view = new Uint8Array(audioBuffer);
@@ -160,34 +160,53 @@ export class GoogleTTS {
     }
   }
 
-  // Play audio with enhanced controls
-  async playAudio(audioBuffer: AudioBuffer, options?: {
+  // Play audio with enhanced controls (Android-optimized)
+  async playAudio(audioBuffer: AudioBuffer | ArrayBuffer, options?: {
     volume?: number;
     onEnd?: () => void;
     onError?: (error: Error) => void;
   }) {
     try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      const audioContext = new AudioContextClass();
-      const source = audioContext.createBufferSource();
-      const gainNode = audioContext.createGain();
+      // Android: Use HTMLAudioElement instead of AudioContext for better compatibility
+      // Convert ArrayBuffer to Blob and create audio element
+      const blob = new Blob([audioBuffer], { type: 'audio/mp3' });
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
       
-      source.buffer = audioBuffer;
-      gainNode.gain.value = options?.volume || 1.0;
-      
-      source.connect(gainNode);
-      gainNode.connect(audioContext.destination);
+      audio.volume = options?.volume || 1.0;
+      audio.crossOrigin = 'anonymous';
       
       if (options?.onEnd) {
-        source.onended = options.onEnd;
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          options.onEnd!();
+        };
       }
       
-      source.start();
+      audio.onerror = (e) => {
+        URL.revokeObjectURL(audioUrl);
+        options?.onError?.(new Error('Audio playback failed'));
+      };
+      
+      // Android: Resume AudioContext if suspended
+      if (typeof window !== 'undefined' && (window.AudioContext || (window as any).webkitAudioContext)) {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        const audioContext = new AudioContextClass();
+        if (audioContext.state === 'suspended') {
+          await audioContext.resume();
+        }
+      }
+      
+      await audio.play();
       
       return {
-        stop: () => source.stop(),
-        pause: () => source.stop(),
-        resume: () => source.start()
+        stop: () => {
+          audio.pause();
+          audio.currentTime = 0;
+          URL.revokeObjectURL(audioUrl);
+        },
+        pause: () => audio.pause(),
+        resume: () => audio.play()
       };
     } catch (error) {
       console.error('Audio playback error:', error);

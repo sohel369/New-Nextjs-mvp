@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Volume2, VolumeX, Bot, Send, Loader2, Play, Pause, Square } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, Bot, Send, Loader2, Play, Pause, Square, Settings } from 'lucide-react';
 import { useAICoachAudio } from '../hooks/useAICoachAudio';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface AICoachProps {
   language: string;
@@ -53,7 +54,9 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
   const [isSpeaking, setIsSpeaking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const audioControlsRef = useRef<any>(null);
   
+  const { settings, updateSettings } = useSettings();
   const { 
     playAIResponse, 
     stopAll, 
@@ -63,6 +66,38 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
     error: audioError,
     soundEnabled 
   } = useAICoachAudio();
+
+  // Auto-enable sound on mount if disabled
+  useEffect(() => {
+    if (settings && !settings.sound_enabled) {
+      console.log('[AI Coach] Auto-enabling sound');
+      updateSettings({ sound_enabled: true });
+    }
+  }, [settings?.sound_enabled]); // Only run when sound_enabled changes
+
+  // Enable sound handler (fallback)
+  const handleEnableSound = async () => {
+    try {
+      await updateSettings({ sound_enabled: true });
+    } catch (error) {
+      console.error('[AI Coach] Failed to enable sound:', error);
+    }
+  };
+
+  // Cleanup audio when component unmounts or audio finishes
+  useEffect(() => {
+    return () => {
+      stopAll();
+    };
+  }, [stopAll]);
+
+  // Update isSpeaking state based on audio playing state
+  useEffect(() => {
+    setIsSpeaking(isPlaying);
+    if (!isPlaying) {
+      setCurrentlyPlayingId(null);
+    }
+  }, [isPlaying]);
 
   const languageMap: { [key: string]: string } = {
     'ar': 'ar-SA',
@@ -106,77 +141,36 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
     };
   }, [stopAll]);
 
-  // TTS function to read text aloud
-  const speakText = (text: string) => {
+  // TTS function to read text aloud (Android-safe version)
+  const speakText = async (text: string) => {
     if (!ttsEnabled) {
       console.log('[AI Coach] TTS disabled by user');
       return;
     }
     
-    if (!('speechSynthesis' in window)) {
-      console.warn('[AI Coach] Speech synthesis not supported in this browser');
-      return;
-    }
-
+    // Android: Use the audio hook instead of direct speechSynthesis
+    // This ensures proper user interaction handling
     try {
-      // Stop any current speech
-      speechSynthesis.cancel();
-
-      const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Set language based on selected language
-    utterance.lang = languageMap[language] || 'en-US';
-    utterance.rate = 0.8; // Slightly slower for better comprehension
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-
-    // Try to find a suitable voice
-    const voices = speechSynthesis.getVoices();
-    const suitableVoice = voices.find(voice => 
-      voice.lang.startsWith(languageMap[language] || 'en-US')
-    );
-    
-    if (suitableVoice) {
-      utterance.voice = suitableVoice;
-    }
-
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-    };
-
-    utterance.onend = () => {
-      setIsSpeaking(false);
-    };
-
-    utterance.onerror = (event) => {
-      const errorMessage = event?.error || event?.type || 'Unknown speech synthesis error';
-      console.error('Speech synthesis error:', errorMessage);
-      setIsSpeaking(false);
-    };
-
-      utteranceRef.current = utterance;
-      
-      try {
-        speechSynthesis.speak(utterance);
-      } catch (error) {
-        console.error('Failed to start speech synthesis:', error);
-        setIsSpeaking(false);
-      }
+      await playAIResponse(text, language);
     } catch (error) {
-      console.error('Failed to setup speech synthesis:', error);
+      console.error('[AI Coach] Failed to play TTS:', error);
       setIsSpeaking(false);
     }
   };
 
   const stopSpeaking = () => {
-    speechSynthesis.cancel();
+    stopAll(); // Use the audio hook's stopAll for better compatibility
     setIsSpeaking(false);
   };
 
   const handleVoiceInput = () => {
     if (!speech.isSupported) {
       console.warn('[AI Coach] SpeechRecognition not supported');
-      alert('Speech recognition not supported in this browser. Please use Chrome, Edge, or Safari.');
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const message = isAndroid 
+        ? 'Speech recognition may not be fully supported on your Android browser. Please try using Chrome browser for best results.'
+        : 'Speech recognition not supported in this browser. Please use Chrome, Edge, or Safari.';
+      alert(message);
       return;
     }
     
@@ -205,7 +199,11 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
     }).catch((error) => {
       console.error('[AI Coach] Speech recognition failed:', error);
       setIsListening(false);
-      alert(`Microphone error: ${error.message || 'Please check your microphone permissions.'}`);
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const errorMsg = isAndroid
+        ? `Microphone error: ${error.message || 'Please check your microphone permissions in browser settings and ensure you\'re using Chrome browser.'}`
+        : `Microphone error: ${error.message || 'Please check your microphone permissions.'}`;
+      alert(errorMsg);
     });
   };
 
@@ -255,10 +253,20 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
       setMessages(memoryMessages);
       onNewMessage?.(aiMessage);
       setIsProcessing(false);
-      if (ttsEnabled) {
-        setTimeout(() => {
-          speakText(aiResponse);
-        }, 300);
+      
+      // Auto-play AI response if sound and TTS are enabled
+      // This works because it's triggered by user action (sending message)
+      if (soundEnabled && ttsEnabled) {
+        // Small delay to ensure message is displayed first
+        setTimeout(async () => {
+          try {
+            console.log('[AI Coach] Auto-playing AI response');
+            await playAIResponse(aiResponse, language);
+          } catch (error) {
+            console.error('[AI Coach] Failed to auto-play AI response:', error);
+            // Don't show error to user - they can still click play button manually
+          }
+        }, 500);
       }
     } catch (err) {
       console.error('[AI Coach] Gemini API call failed:', err);
@@ -290,10 +298,23 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
     setCurrentlyPlayingId(messageId);
 
     try {
-      await playAIResponse(content, language);
+      console.log('[AI Coach] Playing message:', messageId);
+      const controls = await playAIResponse(content, language);
+      
+      if (!controls) {
+        console.error('[AI Coach] No audio controls returned');
+        setCurrentlyPlayingId(null);
+        // Show user-friendly error
+        alert('Unable to play audio. Please check your browser settings and ensure sound is enabled.');
+        return;
+      }
+      
+      // Store controls for potential stop/pause operations
+      console.log('[AI Coach] Audio started successfully');
     } catch (error) {
-      console.error('Failed to play message:', error);
+      console.error('[AI Coach] Failed to play message:', error);
       setCurrentlyPlayingId(null);
+      alert(`Failed to play audio: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -370,43 +391,69 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
                   <p className="text-xs opacity-70">
                     {message.timestamp.toLocaleTimeString()}
                   </p>
-                  {soundEnabled && (
-                    <div className="flex items-center space-x-1">
-                      {message.type === 'user' ? (
-                        <button
-                          onClick={() => handleReadBackUserText(message.id, message.content)}
-                          className={`p-2 rounded-full transition-all duration-200 ${
-                            currentlyPlayingId === message.id
-                              ? 'bg-red-600 hover:bg-red-700 shadow-lg'
-                              : 'bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-green-500/25'
-                          }`}
-                          title={currentlyPlayingId === message.id ? 'Stop reading' : 'Hear pronunciation'}
-                        >
-                          {currentlyPlayingId === message.id ? (
-                            <Square className="w-3 h-3" />
+                      {soundEnabled && (
+                        <div className="flex items-center space-x-1">
+                          {message.type === 'user' ? (
+                            <button
+                              onClick={() => handleReadBackUserText(message.id, message.content)}
+                              disabled={audioLoading && currentlyPlayingId === message.id}
+                              className={`p-2 rounded-full transition-all duration-200 ${
+                                currentlyPlayingId === message.id
+                                  ? audioLoading
+                                    ? 'bg-yellow-600 hover:bg-yellow-700 shadow-lg'
+                                    : 'bg-red-600 hover:bg-red-700 shadow-lg'
+                                  : 'bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-green-500/25'
+                              } disabled:opacity-50 disabled:cursor-not-allowed`}
+                              title={
+                                currentlyPlayingId === message.id 
+                                  ? audioLoading 
+                                    ? 'Loading audio...' 
+                                    : 'Stop reading'
+                                  : 'Hear pronunciation'
+                              }
+                            >
+                              {currentlyPlayingId === message.id ? (
+                                audioLoading ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Square className="w-3 h-3" />
+                                )
+                              ) : (
+                                <Volume2 className="w-3 h-3" />
+                              )}
+                            </button>
                           ) : (
-                            <Volume2 className="w-3 h-3" />
+                            <button
+                              onClick={() => handlePlayMessage(message.id, message.content)}
+                              disabled={audioLoading && currentlyPlayingId === message.id}
+                              className={`p-2 rounded-full transition-all duration-200 ${
+                                currentlyPlayingId === message.id
+                                  ? audioLoading
+                                    ? 'bg-yellow-600 hover:bg-yellow-700 shadow-lg'
+                                    : 'bg-red-600 hover:bg-red-700 shadow-lg'
+                                  : 'bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-blue-500/25'
+                              } disabled:opacity-50 disabled:cursor-not-allowed`}
+                              title={
+                                currentlyPlayingId === message.id 
+                                  ? audioLoading 
+                                    ? 'Loading audio...' 
+                                    : 'Stop audio'
+                                  : 'Play audio'
+                              }
+                            >
+                              {currentlyPlayingId === message.id ? (
+                                audioLoading ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Square className="w-3 h-3" />
+                                )
+                              ) : (
+                                <Play className="w-3 h-3" />
+                              )}
+                            </button>
                           )}
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handlePlayMessage(message.id, message.content)}
-                          className={`p-2 rounded-full transition-all duration-200 ${
-                            currentlyPlayingId === message.id
-                              ? 'bg-red-600 hover:bg-red-700 shadow-lg'
-                              : 'bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-blue-500/25'
-                          }`}
-                          title={currentlyPlayingId === message.id ? 'Stop audio' : 'Play audio'}
-                        >
-                          {currentlyPlayingId === message.id ? (
-                            <Square className="w-3 h-3" />
-                          ) : (
-                            <Play className="w-3 h-3" />
-                          )}
-                        </button>
+                        </div>
                       )}
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -426,7 +473,16 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
               <div className="bg-red-700 text-white px-4 py-3 rounded-lg">
                 <div className="flex items-center space-x-2">
                   <VolumeX className="w-4 h-4" />
-                  <span className="text-sm">Audio error: {audioError}</span>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">Audio Error</span>
+                    <span className="text-xs opacity-90">{audioError}</span>
+                    <button 
+                      onClick={() => window.location.reload()} 
+                      className="text-xs underline mt-1 text-left"
+                    >
+                      Try reloading the page
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -496,26 +552,47 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
               <div>
                 <div className="hidden sm:block">Click microphone to speak</div>
                 <div className="sm:hidden">Tap mic to speak</div>
-                {ttsEnabled && (
+                {ttsEnabled && soundEnabled && (
                   <div className="text-green-400 mt-1 text-xs">
                     🔊 AI responses read aloud automatically
+                  </div>
+                )}
+                {ttsEnabled && !soundEnabled && (
+                  <div className="text-yellow-400 mt-1 text-xs">
+                    🔊 Enable sound to hear AI responses automatically
                   </div>
                 )}
               </div>
             )}
           </div>
           <div className="flex items-center space-x-2">
-            {/* TTS Toggle */}
+            {/* TTS Toggle - also enables sound if disabled */}
             <button
-              onClick={() => setTtsEnabled(!ttsEnabled)}
+              onClick={async () => {
+                if (!soundEnabled) {
+                  // Enable sound first
+                  await handleEnableSound();
+                }
+                setTtsEnabled(!ttsEnabled);
+              }}
               className={`p-2 rounded-lg transition-colors ${
-                ttsEnabled 
+                ttsEnabled && soundEnabled
                   ? 'bg-green-600 hover:bg-green-700' 
                   : 'bg-gray-600 hover:bg-gray-700'
               }`}
-              title={ttsEnabled ? 'Disable TTS' : 'Enable TTS'}
+              title={
+                !soundEnabled 
+                  ? 'Enable sound first to use TTS' 
+                  : ttsEnabled 
+                    ? 'Disable TTS' 
+                    : 'Enable TTS'
+              }
             >
-              {ttsEnabled ? <Volume2 className="w-4 h-4 text-white" /> : <VolumeX className="w-4 h-4 text-white" />}
+              {ttsEnabled && soundEnabled ? (
+                <Volume2 className="w-4 h-4 text-white" />
+              ) : (
+                <VolumeX className="w-4 h-4 text-white" />
+              )}
             </button>
             
             {/* Stop Speaking Button */}
@@ -530,7 +607,11 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
             )}
             
             <span className="text-xs text-gray-400 hidden sm:inline">
-              {ttsEnabled ? 'TTS enabled' : 'TTS disabled'}
+              {ttsEnabled && soundEnabled 
+                ? 'Auto-read enabled' 
+                : ttsEnabled 
+                  ? 'Enable sound for auto-read' 
+                  : 'Auto-read disabled'}
             </span>
           </div>
         </div>

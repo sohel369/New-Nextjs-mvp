@@ -131,16 +131,28 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       // Network error or API routes not available - fallback to localStorage/defaults
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        console.warn('Network error or API routes not available, using localStorage fallback');
+        // API routes not available, check localStorage for saved settings
         const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
         const savedFontSize = localStorage.getItem('fontSize') as 'small' | 'medium' | 'large' | 'xl' | null;
-        if (savedTheme) applyTheme(savedTheme);
-        if (savedFontSize) applyFontSize(savedFontSize);
+        const savedSoundEnabled = localStorage.getItem('soundEnabled');
+        const savedSoundVolume = localStorage.getItem('soundVolume');
+        
+        // Merge localStorage values with defaults
+        const localSettings = { 
+          ...defaultSettings,
+          theme: savedTheme || defaultSettings.theme!,
+          font_size: savedFontSize || defaultSettings.font_size!,
+          sound_enabled: savedSoundEnabled !== null ? savedSoundEnabled === 'true' : defaultSettings.sound_enabled!,
+          sound_volume: savedSoundVolume ? parseInt(savedSoundVolume, 10) : defaultSettings.sound_volume!,
+        } as UserSettings;
+        
+        setSettings(localSettings);
+        if (localSettings.theme) applyTheme(localSettings.theme);
+        if (localSettings.font_size) applyFontSize(localSettings.font_size);
       } else {
-        console.error('Error fetching settings:', error);
+        // Other errors - use defaults
+        setSettings(defaultSettings as UserSettings);
       }
-      // Fallback to default settings
-      setSettings(defaultSettings as UserSettings);
     } finally {
       setLoading(false);
     }
@@ -193,11 +205,36 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   // Update settings in database
   const updateSettings = async (newSettings: Partial<UserSettings>): Promise<boolean> => {
-    if (!user?.id || !settings) return false;
+    if (!settings) {
+      // If no settings yet, still try to update defaults locally
+      const localSettings = { ...defaultSettings, ...newSettings } as UserSettings;
+      setSettings(localSettings);
+      if (newSettings.theme) applyTheme(newSettings.theme);
+      if (newSettings.font_size) applyFontSize(newSettings.font_size);
+      applyNotificationSettings(newSettings);
+      return true;
+    }
+
+    // Always update local state first for immediate UI feedback
+    const updatedSettings = { ...settings, ...newSettings } as UserSettings;
+    setSettings(updatedSettings);
+    
+    // Apply visual changes immediately
+    if (newSettings.theme) {
+      applyTheme(newSettings.theme);
+    }
+    if (newSettings.font_size) {
+      applyFontSize(newSettings.font_size);
+    }
+    applyNotificationSettings(newSettings);
+
+    // Try to sync with API if user is logged in and API is available
+    if (!user?.id) {
+      // No user logged in, local-only update is fine
+      return true;
+    }
 
     try {
-      const updatedSettings = { ...settings, ...newSettings };
-      
       const response = await fetch('/api/settings', {
         method: 'PUT',
         headers: {
@@ -214,49 +251,40 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const isJSON = contentType.includes('application/json');
       
       if (!isJSON) {
-        // API routes not available, update local state only
-        console.warn('API routes not available, settings updated locally');
-        setSettings({ ...settings, ...newSettings } as UserSettings);
-        if (newSettings.theme) applyTheme(newSettings.theme);
-        if (newSettings.font_size) applyFontSize(newSettings.font_size);
-        applyNotificationSettings(newSettings);
+        // API routes not available (static export mode) - local update already done
+        // Store in localStorage as backup
+        if (newSettings.sound_enabled !== undefined) {
+          localStorage.setItem('soundEnabled', newSettings.sound_enabled.toString());
+        }
         return true;
       }
 
       const result = await response.json();
       
       if (result.success && result.data) {
+        // Update with server response (may have additional defaults)
         setSettings(result.data);
-        
-        // Apply theme and font size changes immediately
-        if (newSettings.theme) {
-          applyTheme(newSettings.theme);
-        }
-        if (newSettings.font_size) {
-          applyFontSize(newSettings.font_size);
-        }
-        
-        // Apply notification settings
-        applyNotificationSettings(newSettings);
-        
         return true;
       } else {
-        console.error('Failed to update settings:', result.error);
-        return false;
+        // API returned error but local update already applied
+        // Store in localStorage as backup
+        if (newSettings.sound_enabled !== undefined) {
+          localStorage.setItem('soundEnabled', newSettings.sound_enabled.toString());
+        }
+        // Silently fail - local state is already updated
+        return true;
       }
     } catch (error) {
-      // Network error or API routes not available - update locally only
-      if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        console.warn('Network error or API routes not available, settings updated locally');
-        setSettings({ ...settings, ...newSettings } as UserSettings);
-        if (newSettings.theme) applyTheme(newSettings.theme);
-        if (newSettings.font_size) applyFontSize(newSettings.font_size);
-        applyNotificationSettings(newSettings);
-        return true;
-      } else {
-        console.error('Error updating settings:', error);
+      // Network error or API routes not available - local update already done
+      // Store in localStorage as backup
+      if (newSettings.sound_enabled !== undefined) {
+        localStorage.setItem('soundEnabled', newSettings.sound_enabled.toString());
       }
-      return false;
+      if (newSettings.sound_volume !== undefined) {
+        localStorage.setItem('soundVolume', newSettings.sound_volume.toString());
+      }
+      // Silently fail - local state is already updated
+      return true;
     }
   };
 

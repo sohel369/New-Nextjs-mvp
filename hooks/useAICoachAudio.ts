@@ -25,8 +25,11 @@ export function useAICoachAudio() {
   const audioQueueRef = useRef<string[]>([]);
   const isProcessingRef = useRef(false);
 
-  // Initialize TTS with fallback
-  const tts = createTTS();
+  // Initialize TTS with Google TTS API key if available (client-side env var)
+  const googleTTSApiKey = typeof window !== 'undefined' 
+    ? (process.env.NEXT_PUBLIC_GOOGLE_TTS_API_KEY || '') 
+    : '';
+  const tts = createTTS(googleTTSApiKey || undefined);
 
   const playText = useCallback(async (text: string, language: string = 'en'): Promise<AudioControls> => {
     // Check if sound is enabled
@@ -80,13 +83,17 @@ export function useAICoachAudio() {
           });
 
           if (audioBuffer) {
+            // Google TTS returns ArrayBuffer - convert to Blob for playback
             const audioBlob = new Blob([audioBuffer], { type: 'audio/mp3' });
             const audioUrl = URL.createObjectURL(audioBlob);
             
             audioControls = await playAudioFromUrl(audioUrl, volume);
+            if (audioControls) {
+              console.log('[TTS] Using Google TTS API');
+            }
           }
         } catch (error) {
-          console.log('Google TTS failed, trying fallback:', error);
+          console.log('[TTS] Google TTS failed, trying fallback:', error);
         }
       }
 
@@ -128,15 +135,31 @@ export function useAICoachAudio() {
       const audio = new Audio(url);
       audio.volume = volume;
       audio.preload = 'auto';
+      
+      // Android: Set crossOrigin for better compatibility
+      audio.crossOrigin = 'anonymous';
 
       const controls: AudioControls = {
         play: async () => {
           try {
+            // Android: Resume AudioContext if suspended (required for mobile)
+            if (typeof window !== 'undefined' && (window.AudioContext || (window as any).webkitAudioContext)) {
+              const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+              const audioContext = new AudioContextClass();
+              if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+              }
+            }
+            
             await audio.play();
             setIsPlaying(true);
             setIsPaused(false);
-          } catch (error) {
+          } catch (error: any) {
             console.error('Audio play error:', error);
+            // Android: Sometimes needs user interaction, provide helpful error
+            if (error.name === 'NotAllowedError') {
+              setError('Audio playback requires user interaction. Please tap the play button.');
+            }
             throw error;
           }
         },
@@ -190,42 +213,127 @@ export function useAICoachAudio() {
     });
   };
 
-  const playWithWebSpeechAPI = async (text: string, language: string, volume: number): Promise<AudioControls> => {
+  // Helper function to load voices (important for Android)
+  const loadVoices = useCallback((): Promise<SpeechSynthesisVoice[]> => {
     return new Promise((resolve) => {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = language;
-      utterance.rate = 0.8; // Slower for better comprehension
-      utterance.pitch = 1.0;
-      utterance.volume = volume;
-
-      // Try to find the best voice for the language
       const voices = speechSynthesis.getVoices();
-      const suitableVoice = voices.find(voice => 
-        voice.lang.startsWith(language) && voice.name.includes('Google')
-      ) || voices.find(voice => voice.lang.startsWith(language));
-
-      if (suitableVoice) {
-        utterance.voice = suitableVoice;
+      if (voices.length > 0) {
+        resolve(voices);
+        return;
       }
 
-      const controls: AudioControls = {
-        play: async () => {
-          speechSynthesis.speak(utterance);
-          setIsPlaying(true);
-          setIsPaused(false);
-        },
+      // Wait for voices to load (Android sometimes needs this)
+      const onVoicesChanged = () => {
+        const loadedVoices = speechSynthesis.getVoices();
+        if (loadedVoices.length > 0) {
+          speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
+          resolve(loadedVoices);
+        }
+      };
+
+      speechSynthesis.addEventListener('voiceschanged', onVoicesChanged);
+      
+      // Fallback timeout
+      setTimeout(() => {
+        speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
+        resolve(speechSynthesis.getVoices());
+      }, 1000);
+    });
+  }, []);
+
+  const playWithWebSpeechAPI = async (text: string, language: string, volume: number): Promise<AudioControls> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Android: Load voices first
+        const voices = await loadVoices();
+        console.log('[TTS] Loaded', voices.length, 'voices');
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = language;
+        
+        // Android: Use slightly different settings for better compatibility
+        const isAndroid = /Android/i.test(navigator.userAgent);
+        utterance.rate = isAndroid ? 0.9 : 0.8; // Slightly faster on Android
+        utterance.pitch = 1.0;
+        utterance.volume = volume;
+
+        // Try to find the best voice for the language
+        let suitableVoice = voices.find(voice => 
+          voice.lang.startsWith(language) && (voice.name.includes('Google') || voice.name.includes('Enhanced'))
+        );
+        
+        if (!suitableVoice) {
+          suitableVoice = voices.find(voice => 
+            voice.lang === language || voice.lang.startsWith(language.split('-')[0])
+          );
+        }
+        
+        // Fallback: try any voice with matching language code prefix
+        if (!suitableVoice && language.includes('-')) {
+          const langPrefix = language.split('-')[0];
+          suitableVoice = voices.find(voice => voice.lang.startsWith(langPrefix));
+        }
+
+        if (suitableVoice) {
+          utterance.voice = suitableVoice;
+          console.log('[TTS] Using voice:', suitableVoice.name, 'for language:', language);
+        } else {
+          console.warn('[TTS] No suitable voice found for', language, 'using default');
+        }
+
+        const controls: AudioControls = {
+          play: async () => {
+            try {
+              console.log('[TTS] Web Speech API play() called');
+              
+              // Android: Cancel any ongoing speech first
+              if (isAndroid) {
+                speechSynthesis.cancel();
+                // Small delay to ensure cancellation is complete
+                await new Promise(resolve => setTimeout(resolve, 100));
+              }
+              
+              // Check if speechSynthesis is available
+              if (!('speechSynthesis' in window)) {
+                throw new Error('Speech synthesis not available');
+              }
+              
+              console.log('[TTS] Calling speechSynthesis.speak()');
+              speechSynthesis.speak(utterance);
+              setIsPlaying(true);
+              setIsPaused(false);
+              console.log('[TTS] Speech started');
+            } catch (error) {
+              console.error('[TTS] Failed to speak:', error);
+              setIsPlaying(false);
+              setError(error instanceof Error ? error.message : 'Speech synthesis failed');
+              throw error;
+            }
+          },
         stop: () => {
           speechSynthesis.cancel();
           setIsPlaying(false);
           setIsPaused(false);
         },
         pause: () => {
-          speechSynthesis.pause();
-          setIsPlaying(false);
-          setIsPaused(true);
+          // Android doesn't support pause well, so we cancel
+          if (isAndroid) {
+            speechSynthesis.cancel();
+            setIsPlaying(false);
+            setIsPaused(false);
+          } else {
+            speechSynthesis.pause();
+            setIsPlaying(false);
+            setIsPaused(true);
+          }
         },
         resume: () => {
-          speechSynthesis.resume();
+          // Android: restart speech instead of resume
+          if (isAndroid) {
+            speechSynthesis.speak(utterance);
+          } else {
+            speechSynthesis.resume();
+          }
           setIsPlaying(true);
           setIsPaused(false);
         },
@@ -238,6 +346,7 @@ export function useAICoachAudio() {
         setIsPaused(false);
         controls.isPlaying = true;
         controls.isPaused = false;
+        setIsLoading(false);
       };
 
       utterance.onend = () => {
@@ -245,21 +354,27 @@ export function useAICoachAudio() {
         setIsPaused(false);
         controls.isPlaying = false;
         controls.isPaused = false;
+        setIsLoading(false);
       };
 
       utterance.onerror = (event) => {
-        // "interrupted" is not a real error - it happens when speech is cancelled/stopped
-        // Only log actual errors
+        // "interrupted" and "canceled" are not real errors
         if (event.error !== 'interrupted' && event.error !== 'canceled') {
-          console.error('Speech synthesis error:', event.error);
+          console.error('[TTS] Speech synthesis error:', event.error);
+          setError(`TTS Error: ${event.error}`);
         }
         setIsPlaying(false);
         setIsPaused(false);
         controls.isPlaying = false;
         controls.isPaused = false;
+        setIsLoading(false);
       };
 
-      resolve(controls);
+        resolve(controls);
+      } catch (error) {
+        console.error('[TTS] Error setting up Web Speech API:', error);
+        reject(error);
+      }
     });
   };
 
@@ -295,15 +410,27 @@ export function useAICoachAudio() {
 
   const playAIResponse = useCallback(async (text: string, language: string = 'en') => {
     if (!settings?.sound_enabled) {
+      console.log('[TTS] Sound is disabled, not playing');
       return;
     }
 
     try {
+      console.log('[TTS] Playing AI response:', text.substring(0, 50) + '...');
       const controls = await playText(text, language);
+      
+      if (!controls) {
+        console.error('[TTS] No controls returned from playText');
+        setError('Failed to initialize audio playback');
+        return;
+      }
+      
+      console.log('[TTS] Controls received, calling play()');
       await controls.play();
+      console.log('[TTS] Play() called successfully');
       return controls;
     } catch (error) {
-      console.error('Failed to play AI response:', error);
+      console.error('[TTS] Failed to play AI response:', error);
+      setError(error instanceof Error ? error.message : 'Failed to play audio');
     }
   }, [playText, settings]);
 

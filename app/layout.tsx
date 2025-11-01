@@ -10,6 +10,7 @@ import ErrorBoundary from "../components/ErrorBoundary";
 import AuthFlowGuard from "../components/AuthFlowGuard";
 import NotificationPopupWrapper from "../components/NotificationPopupWrapper";
 import GlobalThemeProvider from "../components/GlobalThemeProvider";
+import CapacitorInitializer from "../components/CapacitorInitializer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -50,6 +51,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
+        <CapacitorInitializer />
         <ErrorBoundary>
           <AuthProvider>
             <SettingsProvider>
