@@ -75,9 +75,15 @@ export default function LoginPage() {
         console.log('[Login] Network error, trying offline login:', networkError.message);
         
         // Try offline login
+        const { loginOffline, storeOfflineUser } = await import('../../../lib/offlineAuth');
         const offlineUser = loginOffline(email);
         if (offlineUser) {
           console.log('[Login] Network failed, using cached credentials');
+          try {
+            storeOfflineUser(offlineUser);
+          } catch (e) {
+            console.warn('Error storing offline user:', e);
+          }
           router.push('/dashboard');
           setTimeout(() => window.location.reload(), 500);
           return;
@@ -92,8 +98,14 @@ export default function LoginPage() {
         // Check if it's a network error
         if (error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('Failed')) {
           console.log('[Login] Network error in response, trying offline login');
+          const { loginOffline, storeOfflineUser } = await import('../../../lib/offlineAuth');
           const offlineUser = loginOffline(email);
           if (offlineUser) {
+            try {
+              storeOfflineUser(offlineUser);
+            } catch (e) {
+              console.warn('Error storing offline user:', e);
+            }
             router.push('/dashboard');
             setTimeout(() => window.location.reload(), 500);
             return;
