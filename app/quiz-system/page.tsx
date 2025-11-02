@@ -39,18 +39,8 @@ const QuizSystemPage: React.FC = () => {
     };
   }, []);
 
-  // Register service worker
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-        .then((registration) => {
-          console.log('Service Worker registered successfully:', registration);
-        })
-        .catch((error) => {
-          console.error('Service Worker registration failed:', error);
-        });
-    }
-  }, []);
+  // Service worker is auto-registered by next-pwa
+  // No manual registration needed
 
   // Handle PWA installation
   const handleInstallPWA = async () => {

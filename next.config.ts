@@ -14,6 +14,41 @@ const nextConfig: NextConfig = {
   env: {
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   },
+  // PWA optimizations
+  async headers() {
+    return [
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+          {
+            key: 'Service-Worker-Allowed',
+            value: '/',
+          },
+          {
+            key: 'Content-Type',
+            value: 'application/javascript; charset=utf-8',
+          },
+        ],
+      },
+      {
+        source: '/manifest.json',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600, stale-while-revalidate=86400',
+          },
+          {
+            key: 'Content-Type',
+            value: 'application/manifest+json',
+          },
+        ],
+      },
+    ];
+  },
   // Conditionally enable static export for Capacitor
   ...(enableStaticExport && {
     output: 'export',
@@ -26,36 +61,8 @@ const nextConfig: NextConfig = {
   }),
 };
 
-// PWA configuration - conditionally apply to avoid Next.js 15 compatibility issues
+// PWA is now handled manually via components/PWARegister.tsx and public/sw.js
+// This avoids compatibility issues with next-pwa and Next.js 15
 let configToExport = nextConfig;
-
-// Only apply PWA in production builds (not during development or static export)
-if (process.env.NODE_ENV === 'production' && !enableStaticExport) {
-  try {
-    // Use dynamic require to handle compatibility issues
-    const withPWA = require('next-pwa')({
-      dest: 'public',
-      register: true,
-      skipWaiting: true,
-      // Exclude middleware manifest from PWA build
-      buildExcludes: [/middleware-manifest\.json$/],
-      runtimeCaching: [
-        {
-          urlPattern: /^https?.*/,
-          handler: 'NetworkFirst',
-          options: {
-            cacheName: 'offlineCache',
-            expiration: {
-              maxEntries: 200,
-            },
-          },
-        },
-      ],
-    });
-    configToExport = withPWA(nextConfig);
-  } catch (error) {
-    console.warn('Failed to load next-pwa, continuing without PWA support:', error);
-  }
-}
 
 export default configToExport;

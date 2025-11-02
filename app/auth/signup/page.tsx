@@ -102,7 +102,50 @@ export default function SignupPage() {
   
     setLoading(true);
   
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
     try {
+      if (isOffline) {
+        // Queue signup for when online
+        const { queueSignup, storeOfflineUser, hashPassword, storeOfflineAuth } = await import('../../../lib/offlineAuth');
+        
+        // Queue the signup request
+        queueSignup({
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+          learningLanguages: formData.learningLanguages,
+          nativeLanguage: formData.nativeLanguage
+        });
+
+        // Create temporary offline user for immediate access
+        const tempUserId = 'temp-' + Date.now();
+        const offlineUser = {
+          id: tempUserId,
+          email: formData.email,
+          name: formData.name,
+          level: 1,
+          total_xp: 0,
+          streak: 0,
+          learning_language: formData.learningLanguages[0] || 'ar',
+          native_language: formData.nativeLanguage,
+          cachedAt: Date.now()
+        };
+        
+        storeOfflineUser(offlineUser);
+        storeOfflineAuth(formData.email, hashPassword(formData.password));
+        
+        console.log('[Signup] Queued for offline - temporary account created');
+        setSuccess(true);
+        setTimeout(() => {
+          router.replace('/dashboard');
+          // Reload to update auth context
+          setTimeout(() => window.location.reload(), 500);
+        }, 1000);
+        return;
+      }
+
+      // Online signup
       const { data: signupData, error: signupError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -131,6 +174,23 @@ export default function SignupPage() {
         setError('Signup successful, but auto-login failed. Please login manually.');
         setLoading(false);
         return;
+      }
+
+      // Store credentials for offline access
+      if (loginData.user && loginData.session) {
+        const { storeOfflineAuth, hashPassword, storeOfflineUser } = await import('../../../lib/offlineAuth');
+        storeOfflineAuth(formData.email, hashPassword(formData.password));
+        storeOfflineUser({
+          id: loginData.user.id,
+          email: formData.email,
+          name: formData.name,
+          level: 1,
+          total_xp: 0,
+          streak: 0,
+          learning_language: formData.learningLanguages[0] || 'ar',
+          native_language: formData.nativeLanguage,
+          cachedAt: Date.now()
+        });
       }
 
       // Create user profile in database

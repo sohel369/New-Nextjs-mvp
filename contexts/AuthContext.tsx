@@ -47,6 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await new Promise(resolve => setTimeout(resolve, 100));
         
         // Get initial session with timeout
+        // Check if offline - if so, try to restore user from localStorage
+        const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
         let session;
         try {
           const sessionPromise = supabase.auth.getSession();
@@ -58,6 +60,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           session = result.data.session;
         } catch (timeoutError) {
           console.warn('Auth session timeout, continuing without session');
+          // If offline and timeout, try to restore user from stored session
+          if (isOffline) {
+            try {
+              // Try to get session from localStorage
+              const storedSession = localStorage.getItem('sb-auth-token') || 
+                                   sessionStorage.getItem('sb-session');
+              if (storedSession) {
+                console.log('[Auth] Offline - attempting to restore session from storage');
+                // Don't clear user - let refreshUser handle it
+              }
+            } catch (e) {
+              // Ignore storage errors
+            }
+          }
           session = null;
         }
         
@@ -66,6 +82,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await refreshUser();
         } else {
           console.log('No initial session found');
+          // Always try to restore from cached user data if available (works for both online and offline)
+          try {
+            const { getOfflineUser } = await import('../lib/offlineAuth');
+            const offlineUser = getOfflineUser();
+            if (offlineUser) {
+              console.log('[Auth] Restoring user from cache');
+              setUser({
+                id: offlineUser.id,
+                email: offlineUser.email,
+                name: offlineUser.name,
+                level: offlineUser.level,
+                total_xp: offlineUser.total_xp,
+                streak: offlineUser.streak,
+                learning_language: offlineUser.learning_language,
+                native_language: offlineUser.native_language
+              });
+              setLoading(false);
+              setAuthChecked(true);
+              // If online, will refresh in the useEffect after refreshUser is defined
+              return;
+            }
+          } catch (e) {
+            console.warn('[Auth] Error checking offline user:', e);
+          }
+          
+          // No cached user found
           setUser(null);
           setLoading(false);
         }
@@ -103,14 +145,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (event, session) => {
         console.log('Auth state change:', event, session?.user?.id);
         
+        const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+        
         if (event === 'SIGNED_IN' && session?.user) {
           await refreshUser();
         } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setLoading(false);
+          // Only clear user if we're online - preserve user state when offline
+          if (!isOffline) {
+            setUser(null);
+            setLoading(false);
+          } else {
+            console.log('[Auth] SIGNED_OUT event while offline - preserving user state');
+            // Don't clear user - might be a network issue
+          }
         } else if (event === 'TOKEN_REFRESHED') {
           // Token was refreshed, update user if needed
-          if (session?.user && user) {
+          // But skip if offline to avoid network calls
+          if (session?.user && user && !isOffline) {
             // Only refresh if we already have a user to avoid loops
             await refreshUser();
           }
@@ -127,33 +178,132 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     
+      // Check if we're offline - if so, keep existing user state or restore from cache
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (isOffline) {
+        if (user) {
+          console.log('[Auth] Offline - keeping existing user state');
+          setLoading(false);
+          setRefreshing(false);
+          return;
+        } else {
+          // Try to restore from offline cache
+          const { getOfflineUser } = await import('../lib/offlineAuth');
+          const offlineUser = getOfflineUser();
+          if (offlineUser) {
+            console.log('[Auth] Offline - restoring user from cache');
+            setUser({
+              id: offlineUser.id,
+              email: offlineUser.email,
+              name: offlineUser.name,
+              level: offlineUser.level,
+              total_xp: offlineUser.total_xp,
+              streak: offlineUser.streak,
+              learning_language: offlineUser.learning_language,
+              native_language: offlineUser.native_language
+            });
+            setLoading(false);
+            setRefreshing(false);
+            return;
+          }
+        }
+      }
+    
     try {
       setRefreshing(true);
       console.log('Refreshing user authentication...');
       
-      // First, try to get the current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // First, try to get the current session with timeout
+      let session, sessionError;
+      try {
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session fetch timeout')), 5000)
+        );
+        const result = await Promise.race([sessionPromise, timeoutPromise]) as { data: { session: any }, error?: any };
+        session = result.data.session;
+        sessionError = result.error;
+      } catch (timeoutError) {
+        // Timeout or network error - if we have a user OR offline user, keep them
+        const { getOfflineUser } = await import('../lib/offlineAuth');
+        const offlineUser = getOfflineUser();
+        
+        if (user || offlineUser) {
+          console.log('[Auth] Session fetch failed but user exists - keeping user state');
+          if (offlineUser && !user) {
+            // Restore from offline cache
+            setUser({
+              id: offlineUser.id,
+              email: offlineUser.email,
+              name: offlineUser.name,
+              level: offlineUser.level,
+              total_xp: offlineUser.total_xp,
+              streak: offlineUser.streak,
+              learning_language: offlineUser.learning_language,
+              native_language: offlineUser.native_language
+            });
+          }
+          setLoading(false);
+          setRefreshing(false);
+          return;
+        }
+        sessionError = timeoutError;
+      }
       
       if (sessionError) {
         console.log('No active session found:', sessionError.message);
-        setUser(null);
+        // Only clear user if we're online - offline errors shouldn't logout
+        if (!isOffline && !user) {
+          setUser(null);
+        }
         setLoading(false);
         return;
       }
       
       if (!session) {
         console.log('No session found');
-        setUser(null);
+        // Only clear user if we're online and don't have a user
+        if (!isOffline && !user) {
+          setUser(null);
+        }
         setLoading(false);
         return;
       }
       
       // If we have a session, get the user
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      let authUser, authError;
+      try {
+        const userPromise = supabase.auth.getUser();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('User fetch timeout')), 5000)
+        );
+        const result = await Promise.race([userPromise, timeoutPromise]) as { data: { user: any }, error?: any };
+        authUser = result.data.user;
+        authError = result.error;
+      } catch (timeoutError) {
+        // Network/timeout error - if we have a user from session, use session user
+        if (session?.user && user) {
+          console.log('[Auth] User fetch timeout but session exists - keeping user state');
+          setLoading(false);
+          setRefreshing(false);
+          return;
+        }
+        authError = timeoutError;
+      }
       
       if (authError) {
         console.error('Authentication error:', authError);
-        setUser(null);
+        // Only clear user if we're online - preserve user state when offline
+        const errorIsOffline = authError?.message?.includes('fetch') || 
+                               authError?.message?.includes('network') ||
+                               authError?.message?.includes('timeout');
+        if (!errorIsOffline && !user) {
+          setUser(null);
+        } else if (errorIsOffline && user) {
+          console.log('[Auth] Network error but user exists - keeping user state');
+        }
+        setLoading(false);
+        setRefreshing(false);
         return;
       }
       
@@ -165,21 +315,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let error = null;
         
         // First try: profiles table (public.profiles with correct column names)
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, email, name, level, total_xp, streak, native_language, learning_language')
-          .eq('id', authUser.id)
-          .single();
+        let profilesData, profilesError;
+        try {
+          const profilePromise = supabase
+            .from('profiles')
+            .select('id, email, name, level, total_xp, streak, native_language, learning_language')
+            .eq('id', authUser.id)
+            .single();
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+          );
+          const result = await Promise.race([profilePromise, timeoutPromise]) as { data: any, error?: any };
+          profilesData = result.data;
+          profilesError = result.error;
+        } catch (timeoutError) {
+          // Network timeout - if we have existing user data, keep it
+          if (user) {
+            console.log('[Auth] Profile fetch timeout but user exists - keeping user state');
+            setLoading(false);
+            setRefreshing(false);
+            return;
+          }
+          profilesError = timeoutError;
+        }
 
         if (profilesError && profilesError.code !== 'PGRST116') {
           console.log('Profiles table failed, trying users table:', profilesError.message);
           
           // Fallback: users table (with correct column names)
-          const { data: usersData, error: usersError } = await supabase
-            .from('users')
-            .select('id, email, name, level, total_xp, streak, learning_language, native_language')
-            .eq('id', authUser.id)
-            .single();
+          let usersData, usersError;
+          try {
+            const usersPromise = supabase
+              .from('users')
+              .select('id, email, name, level, total_xp, streak, learning_language, native_language')
+              .eq('id', authUser.id)
+              .single();
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Users fetch timeout')), 5000)
+            );
+            const result = await Promise.race([usersPromise, timeoutPromise]) as { data: any, error?: any };
+            usersData = result.data;
+            usersError = result.error;
+          } catch (timeoutError) {
+            // Network timeout - if we have existing user data, keep it
+            if (user) {
+              console.log('[Auth] Users fetch timeout but user exists - keeping user state');
+              setLoading(false);
+              setRefreshing(false);
+              return;
+            }
+            usersError = timeoutError;
+          }
           
           profile = usersData;
           error = usersError;
@@ -302,7 +488,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (profile) {
           console.log('User profile found:', profile);
           // Map database fields to User interface
-          setUser({
+          const userData = {
             id: profile.id,
             email: profile.email,
             name: profile.name,
@@ -311,7 +497,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             streak: profile.streak,
             learning_language: profile.learning_language || 'ar',
             native_language: profile.native_language || 'en'
-          });
+          };
+          setUser(userData);
+          
+          // Store for offline access
+          if (typeof window !== 'undefined') {
+            const { storeOfflineUser } = require('../lib/offlineAuth');
+            storeOfflineUser({
+              ...userData,
+              cachedAt: Date.now()
+            });
+          }
         } else {
           console.log('No profile data found, creating default user');
           setUser({
@@ -331,7 +527,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Error refreshing user:', error);
-      setUser(null);
+      // Only clear user if we're online and error is not network-related
+      const isNetworkError = error instanceof Error && (
+        error.message.includes('fetch') ||
+        error.message.includes('network') ||
+        error.message.includes('timeout')
+      );
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      
+      if (!isNetworkError && !isOffline && !user) {
+        setUser(null);
+      } else if ((isNetworkError || isOffline) && user) {
+        console.log('[Auth] Network error during refresh - keeping existing user state');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

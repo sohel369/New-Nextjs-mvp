@@ -1,15 +1,15 @@
 'use client';
 
 export const registerSW = () => {
+  // next-pwa auto-registers the service worker, so we don't need manual registration
+  // This function is kept for compatibility but will check if SW is already registered
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then((registration) => {
-          console.log('SW registered: ', registration);
-        })
-        .catch((registrationError) => {
-          console.log('SW registration failed: ', registrationError);
-        });
+    navigator.serviceWorker.getRegistration().then((registration) => {
+      if (registration) {
+        console.log('Service Worker already registered:', registration);
+      } else {
+        console.log('Service Worker will be auto-registered by next-pwa');
+      }
     });
   }
 };

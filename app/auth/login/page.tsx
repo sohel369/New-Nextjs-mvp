@@ -20,14 +20,86 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
 
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
     try {
-      console.log('Attempting login...');
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Always check for offline first - even if navigator.onLine says true
+      // Network requests might still fail
+      
+      // If offline, always try cached credentials first
+      if (isOffline) {
+        const { loginOffline } = await import('../../../lib/offlineAuth');
+        const offlineUser = loginOffline(email);
+        
+        if (offlineUser) {
+          // Use cached credentials for offline login
+          console.log('[Login] Offline login with cached credentials');
+          // Store user in auth context manually
+          try {
+            const { storeOfflineUser } = await import('../../../lib/offlineAuth');
+            storeOfflineUser(offlineUser);
+          } catch (e) {
+            console.warn('Error storing offline user:', e);
+          }
+          router.push('/dashboard');
+          setTimeout(() => window.location.reload(), 500);
+          return;
+        } else {
+          // No cached credentials found
+          setError('No cached credentials found. Please login while online first to enable offline access.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Online login - wrap in try-catch to handle network errors
+      console.log('Attempting online login...');
+      
+      let data, error;
+      try {
+        const loginPromise = supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        // Add timeout to detect network issues
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Network timeout - appears offline')), 10000)
+        );
+        
+        const result = await Promise.race([loginPromise, timeoutPromise]) as { data: any, error: any };
+        data = result.data;
+        error = result.error;
+      } catch (networkError: any) {
+        // Network error - treat as offline
+        console.log('[Login] Network error, trying offline login:', networkError.message);
+        
+        // Try offline login
+        const offlineUser = loginOffline(email);
+        if (offlineUser) {
+          console.log('[Login] Network failed, using cached credentials');
+          router.push('/dashboard');
+          setTimeout(() => window.location.reload(), 500);
+          return;
+        }
+        
+        setError('Unable to connect. Please check your internet connection or login with cached credentials.');
+        setLoading(false);
+        return;
+      }
 
       if (error) {
+        // Check if it's a network error
+        if (error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('Failed')) {
+          console.log('[Login] Network error in response, trying offline login');
+          const offlineUser = loginOffline(email);
+          if (offlineUser) {
+            router.push('/dashboard');
+            setTimeout(() => window.location.reload(), 500);
+            return;
+          }
+        }
+        
         console.error('Login Error:', error.message);
         setError(error.message);
         setLoading(false);
@@ -35,6 +107,26 @@ export default function LoginPage() {
       }
 
       console.log('Login Success:', data);
+      
+      // Store credentials for offline access (hash password first)
+      if (data.user && data.session) {
+        const { storeOfflineAuth, hashPassword } = await import('../../../lib/offlineAuth');
+        storeOfflineAuth(email, hashPassword(password));
+        
+        // Store user data for offline access
+        const { storeOfflineUser } = await import('../../../lib/offlineAuth');
+        storeOfflineUser({
+          id: data.user.id,
+          email: data.user.email || email,
+          name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'User',
+          level: 1,
+          total_xp: 0,
+          streak: 0,
+          learning_language: 'ar',
+          native_language: 'en',
+          cachedAt: Date.now()
+        });
+      }
       
       // Redirect to dashboard after successful login
       console.log('Redirecting to dashboard...');
@@ -131,6 +223,16 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+
+            {/* Offline Notice */}
+            {typeof navigator !== 'undefined' && !navigator.onLine && (
+              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 text-yellow-400 text-sm">
+                <div className="flex items-center space-x-2">
+                  <span>📡</span>
+                  <span>You're offline. Login will use cached credentials if available.</span>
+                </div>
+              </div>
+            )}
 
             {/* Error Message */}
             {error && (

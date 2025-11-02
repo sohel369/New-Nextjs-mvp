@@ -11,6 +11,8 @@ import AuthFlowGuard from "../components/AuthFlowGuard";
 import NotificationPopupWrapper from "../components/NotificationPopupWrapper";
 import GlobalThemeProvider from "../components/GlobalThemeProvider";
 import CapacitorInitializer from "../components/CapacitorInitializer";
+import PWARegister from "../components/PWARegister";
+import OfflineIndicator from "../components/OfflineIndicator";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,6 +32,10 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "default",
     title: "LinguaAI",
+  },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/favicon.ico",
   },
 };
 
@@ -53,6 +59,8 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <CapacitorInitializer />
+        <PWARegister />
+        <OfflineIndicator />
         <ErrorBoundary>
           <AuthProvider>
             <SettingsProvider>

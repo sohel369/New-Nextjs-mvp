@@ -19,15 +19,57 @@ export default function ProtectedRoute({
   const { user, loading, authChecked } = useAuth();
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [hasCheckedOffline, setHasCheckedOffline] = useState(false);
 
   useEffect(() => {
-    // Only redirect if auth has been checked and user is not authenticated
-    if (authChecked && requireAuth && !user) {
-      console.log('User not authenticated, redirecting to:', redirectTo);
-      setIsRedirecting(true);
-      router.push(redirectTo);
+    // Check for offline user if no user and offline
+    const checkOfflineUser = async () => {
+      if (!user && !hasCheckedOffline && typeof window !== 'undefined') {
+        const isOffline = !navigator.onLine;
+        if (isOffline) {
+          try {
+            const { getOfflineUser } = await import('../lib/offlineAuth');
+            const offlineUser = getOfflineUser();
+            if (offlineUser) {
+              console.log('[ProtectedRoute] Found offline user, allowing access');
+              // User will be restored by auth context, just wait
+              setHasCheckedOffline(true);
+              return;
+            }
+          } catch (e) {
+            console.warn('[ProtectedRoute] Error checking offline user:', e);
+          }
+        }
+        setHasCheckedOffline(true);
+      }
+    };
+
+    checkOfflineUser();
+  }, [user, hasCheckedOffline]);
+
+  useEffect(() => {
+    // Only redirect if auth has been checked, user is not authenticated, and we've checked for offline user
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    
+    if (authChecked && requireAuth && !user && hasCheckedOffline) {
+      // If offline, give auth context more time to restore from cache
+      if (isOffline) {
+        // Wait a bit longer for offline restoration
+        const timeout = setTimeout(() => {
+          if (!user) {
+            console.log('User not authenticated, redirecting to:', redirectTo);
+            setIsRedirecting(true);
+            router.push(redirectTo);
+          }
+        }, 1000);
+        return () => clearTimeout(timeout);
+      } else {
+        console.log('User not authenticated, redirecting to:', redirectTo);
+        setIsRedirecting(true);
+        router.push(redirectTo);
+      }
     }
-  }, [user, authChecked, router, redirectTo, requireAuth]);
+  }, [user, authChecked, router, redirectTo, requireAuth, hasCheckedOffline]);
 
   // Show loading state only if auth hasn't been checked yet
   if (!authChecked) {
