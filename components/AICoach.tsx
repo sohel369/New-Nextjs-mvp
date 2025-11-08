@@ -67,13 +67,28 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
     soundEnabled 
   } = useAICoachAudio();
 
-  // Auto-enable sound on mount if disabled
+  // Auto-enable sound and TTS on mount if disabled
   useEffect(() => {
-    if (settings && !settings.sound_enabled) {
-      console.log('[AI Coach] Auto-enabling sound');
-      updateSettings({ sound_enabled: true });
+    if (settings) {
+      if (!settings.sound_enabled) {
+        console.log('[AI Coach] Auto-enabling sound');
+        updateSettings({ sound_enabled: true });
+      }
+      // Ensure TTS is enabled when sound is enabled
+      if (settings.sound_enabled && !ttsEnabled) {
+        console.log('[AI Coach] Auto-enabling TTS');
+        setTtsEnabled(true);
+      }
     }
-  }, [settings?.sound_enabled]); // Only run when sound_enabled changes
+  }, [settings, updateSettings, ttsEnabled]); // Run when settings load or change
+
+  // Auto-enable TTS when sound becomes enabled
+  useEffect(() => {
+    if (soundEnabled && !ttsEnabled) {
+      console.log('[AI Coach] Sound enabled, auto-enabling TTS');
+      setTtsEnabled(true);
+    }
+  }, [soundEnabled, ttsEnabled]);
 
   // Enable sound handler (fallback)
   const handleEnableSound = async () => {
@@ -256,17 +271,33 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
       
       // Auto-play AI response if sound and TTS are enabled
       // This works because it's triggered by user action (sending message)
-      if (soundEnabled && ttsEnabled) {
+      // Ensure both are enabled before auto-playing
+      const shouldAutoPlay = (soundEnabled || settings?.sound_enabled) && ttsEnabled;
+      
+      if (shouldAutoPlay) {
         // Small delay to ensure message is displayed first
         setTimeout(async () => {
           try {
-            console.log('[AI Coach] Auto-playing AI response');
+            console.log('[AI Coach] Auto-playing AI response (soundEnabled:', soundEnabled, ', ttsEnabled:', ttsEnabled, ')');
+            // Ensure sound is enabled before playing
+            if (!soundEnabled && settings) {
+              await updateSettings({ sound_enabled: true });
+              // Wait a bit for settings to update
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            // Ensure TTS is enabled
+            if (!ttsEnabled) {
+              setTtsEnabled(true);
+              await new Promise(resolve => setTimeout(resolve, 50));
+            }
             await playAIResponse(aiResponse, language);
           } catch (error) {
             console.error('[AI Coach] Failed to auto-play AI response:', error);
             // Don't show error to user - they can still click play button manually
           }
         }, 500);
+      } else {
+        console.log('[AI Coach] Auto-play disabled (soundEnabled:', soundEnabled, ', ttsEnabled:', ttsEnabled, ')');
       }
     } catch (err) {
       console.error('[AI Coach] Gemini API call failed:', err);
@@ -299,17 +330,38 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
 
     try {
       console.log('[AI Coach] Playing message:', messageId);
+      
+      // Ensure sound and TTS are enabled before attempting to play
+      if (!soundEnabled) {
+        console.log('[AI Coach] Sound is disabled, attempting to enable...');
+        await updateSettings({ sound_enabled: true });
+        // Wait a moment for settings to update
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      // Ensure TTS is enabled
+      if (!ttsEnabled) {
+        console.log('[AI Coach] TTS is disabled, enabling...');
+        setTtsEnabled(true);
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      
       const controls = await playAIResponse(content, language);
       
       if (!controls) {
         console.error('[AI Coach] No audio controls returned');
         setCurrentlyPlayingId(null);
-        // Show user-friendly error
-        alert('Unable to play audio. Please check your browser settings and ensure sound is enabled.');
+        // Check if it's a sound disabled error
+        if (audioError && audioError.includes('Sound is disabled')) {
+          alert('Sound is disabled. Please enable sound in your settings to hear audio.');
+        } else {
+          alert(audioError || 'Unable to play audio. Please check your browser settings and ensure sound is enabled.');
+        }
         return;
       }
       
       // Store controls for potential stop/pause operations
+      audioControlsRef.current = controls;
       console.log('[AI Coach] Audio started successfully');
     } catch (error) {
       console.error('[AI Coach] Failed to play message:', error);

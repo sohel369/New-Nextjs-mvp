@@ -16,7 +16,7 @@ export default function AuthSuccessPage() {
         // User is authenticated, redirect to profile
         setRedirecting(true);
         setTimeout(() => {
-          router.push('/profile');
+          router.push('/dashboard');
         }, 1000);
       } else {
         // User is not authenticated, redirect to login

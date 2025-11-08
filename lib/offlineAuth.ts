@@ -12,7 +12,8 @@ export interface OfflineUser {
   level: number;
   total_xp: number;
   streak: number;
-  learning_language?: string;
+  learning_language?: string; // Deprecated: use learning_languages instead
+  learning_languages?: string[]; // Preferred: array of language codes
   native_language?: string;
   cachedAt: number;
 }
@@ -27,11 +28,27 @@ export interface QueuedSignup {
 }
 
 // Store user credentials for offline login (hashed password for security)
-export function storeOfflineAuth(email: string, passwordHash: string) {
+export async function storeOfflineAuth(email: string, password: string) {
+  try {
+    // Hash the password securely
+    const passwordHash = await hashPassword(password);
+    const authData = {
+      email,
+      passwordHash,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(OFFLINE_AUTH_KEY, JSON.stringify(authData));
+  } catch (error) {
+    console.error('Error storing offline auth:', error);
+  }
+}
+
+// Synchronous version for backward compatibility (uses sync hash)
+export function storeOfflineAuthSync(email: string, passwordHash: string) {
   try {
     const authData = {
       email,
-      passwordHash, // Note: This should be a hash, not plain password
+      passwordHash,
       timestamp: Date.now()
     };
     localStorage.setItem(OFFLINE_AUTH_KEY, JSON.stringify(authData));
@@ -154,7 +171,24 @@ export function clearOfflineAuth() {
   }
 }
 
-// Simple hash function (for offline use only - not secure for production)
+// Secure password hashing using Web Crypto API (available in browser and Node.js)
+// This provides better security than simple hash for offline auth storage
+async function secureHash(str: string): Promise<string> {
+  try {
+    // Use Web Crypto API for secure hashing
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch (error) {
+    console.error('Error in secure hash, falling back to simple hash:', error);
+    // Fallback to simple hash if Web Crypto is not available
+    return simpleHash(str);
+  }
+}
+
+// Simple hash function (fallback only - not secure for production)
 function simpleHash(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -165,8 +199,16 @@ function simpleHash(str: string): string {
   return hash.toString();
 }
 
-// Store password hash (simplified - in production use proper hashing)
-export function hashPassword(password: string): string {
-  return simpleHash(password + 'lingua-ai-salt'); // Simple hash with salt
+// Store password hash with secure hashing
+// Note: This is for offline authentication only - passwords are still stored securely in Supabase
+export async function hashPassword(password: string): Promise<string> {
+  const salt = 'lingua-ai-offline-salt-v2'; // Versioned salt for offline use
+  return await secureHash(password + salt);
+}
+
+// Synchronous version for backward compatibility (uses simple hash)
+export function hashPasswordSync(password: string): string {
+  const salt = 'lingua-ai-offline-salt-v2';
+  return simpleHash(password + salt);
 }
 

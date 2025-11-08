@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { supabase, logSupabaseError } from '../lib/supabase';
 import { Trophy, Crown, Medal, Star, RefreshCw, Users, Target, Flame } from 'lucide-react';
 
 interface LeaderboardEntry {
@@ -55,7 +55,22 @@ export default function LiveLeaderboard({
         .limit(limit);
 
       if (error) {
-        console.error('Error loading leaderboard:', error);
+        // Only log non-expected errors with meaningful content
+        const errorCode = error?.code;
+        if (errorCode !== 'PGRST116' && errorCode !== '42P01') {
+          // Check if error is not an empty object before logging
+          const isErrorObject = typeof error === 'object' && error !== null;
+          const errorKeys = isErrorObject ? Object.keys(error) : [];
+          const isEmptyObject = isErrorObject && errorKeys.length === 0;
+          const hasMessage = error.message && typeof error.message === 'string' && error.message.trim().length > 0;
+          const hasCode = error.code && (typeof error.code === 'string' || typeof error.code === 'number');
+          
+          // Only log if error has meaningful content
+          if (!isEmptyObject && (hasMessage || hasCode || error.details || error.hint)) {
+            logSupabaseError('Error loading leaderboard', error, { limit });
+          }
+        }
+        setLeaderboard([]);
         return;
       }
 
@@ -68,13 +83,41 @@ export default function LiveLeaderboard({
           .rpc('get_user_leaderboard_position', { p_user_id: userId });
 
         if (rankError) {
-          console.error('Error loading user rank:', rankError);
+          // Only log non-expected errors with meaningful content
+          const errorCode = rankError?.code;
+          if (errorCode !== 'PGRST116' && errorCode !== '42P01') {
+            // Check if error is not an empty object before logging
+            const isErrorObject = typeof rankError === 'object' && rankError !== null;
+            const errorKeys = isErrorObject ? Object.keys(rankError) : [];
+            const isEmptyObject = isErrorObject && errorKeys.length === 0;
+            const hasMessage = rankError.message && typeof rankError.message === 'string' && rankError.message.trim().length > 0;
+            const hasCode = rankError.code && (typeof rankError.code === 'string' || typeof rankError.code === 'number');
+            
+            // Only log if error has meaningful content
+            if (!isEmptyObject && (hasMessage || hasCode || rankError.details || rankError.hint)) {
+              logSupabaseError('Error loading user rank', rankError, { userId });
+            }
+          }
         } else {
           setUserRank(userRankData);
         }
       }
     } catch (error) {
-      console.error('Error loading leaderboard:', error);
+      const errorCode = (error as any)?.code;
+      if (errorCode !== 'PGRST116' && errorCode !== '42P01') {
+        // Check if error has meaningful content before logging
+        const isErrorObject = typeof error === 'object' && error !== null;
+        const errorKeys = isErrorObject ? Object.keys(error) : [];
+        const isEmptyObject = isErrorObject && errorKeys.length === 0;
+        const errorMessage = error instanceof Error ? error.message : (typeof error === 'string' ? error : null);
+        const hasMessage = errorMessage && errorMessage.trim().length > 0;
+        
+        // Only log if error has meaningful content
+        if (!isEmptyObject && (hasMessage || (error as any)?.code || (error as any)?.details || (error as any)?.hint)) {
+          logSupabaseError('Unexpected error loading leaderboard', error, { limit, userId });
+        }
+      }
+      setLeaderboard([]);
     } finally {
       setLoading(false);
     }

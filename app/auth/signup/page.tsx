@@ -1,12 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, Mail, Lock, User, Globe, ArrowRight, Loader2, Check } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { getRedirectUrl } from '../../../lib/config';
 import { useAuth } from '../../../contexts/AuthContext';
+
+// TypeScript interfaces for API responses
+interface SignupResponse {
+  success?: boolean;
+  user?: any;
+  session?: any;
+  profile?: any;
+  settings?: any;
+  error?: string;
+  message?: string;
+  warning?: string;
+  code?: string;
+  details?: {
+    profileError?: string;
+    usersError?: string;
+    hint?: string;
+  } | string;
+  table?: string;
+  debug?: any;
+}
 
 const languages = [
   { code: 'en', name: 'English', flag: '🇺🇸', native: 'English' },
@@ -33,8 +53,25 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
-  const { refreshUser } = useAuth();
+  const { user, refreshUser, authChecked } = useAuth();
+
+  // Track client-side hydration to prevent hydration mismatches
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Redirect after signup when user is loaded (fallback)
+  useEffect(() => {
+    if (success && user && authChecked) {
+      console.log('[signup] User loaded via useEffect, redirecting to dashboard...');
+      // Small delay to ensure everything is ready
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 300);
+    }
+  }, [success, user, authChecked, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -64,6 +101,12 @@ export default function SignupPage() {
     }
     if (!formData.email.trim()) {
       setError('Please enter your email');
+      return false;
+    }
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      setError('Please enter a valid email address');
       return false;
     }
     if (!formData.password) {
@@ -127,59 +170,204 @@ export default function SignupPage() {
           level: 1,
           total_xp: 0,
           streak: 0,
-          learning_language: formData.learningLanguages[0] || 'ar',
+          learning_language: formData.learningLanguages[0] || 'en', // Backward compatibility
+          learning_languages: formData.learningLanguages || ['en'], // Array support
           native_language: formData.nativeLanguage,
           cachedAt: Date.now()
         };
         
         storeOfflineUser(offlineUser);
-        storeOfflineAuth(formData.email, hashPassword(formData.password));
+        await storeOfflineAuth(formData.email, formData.password);
+        
+        // Set flag for ProtectedRoute
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('just_signed_up', 'true');
+        }
+        
+        // Refresh AuthContext to load the offline user
+        console.log('[Signup] Queued for offline - refreshing AuthContext...');
+        await refreshUser();
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         console.log('[Signup] Queued for offline - temporary account created');
         setSuccess(true);
         setTimeout(() => {
-          router.replace('/dashboard');
-          // Reload to update auth context
-          setTimeout(() => window.location.reload(), 500);
+          router.push('/dashboard');
         }, 1000);
         return;
       }
 
-      // Online signup
-      const { data: signupData, error: signupError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
+      // Online signup - use API route for safer profile creation
+      console.log('[signup] Starting signup process...');
+      
+      let apiResponse: Response;
+      try {
+        apiResponse = await fetch('/api/signup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
             name: formData.name,
-            learning_languages: formData.learningLanguages,
-            native_language: formData.nativeLanguage
-          }
-        }
-      });
-  
-      if (signupError) {
-        setError(signupError.message);
-        setLoading(false);
-        return;
-      }
-  
-      // Auto-login (signIn) after signUp
-      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password
-      });
-  
-      if (loginError) {
-        setError('Signup successful, but auto-login failed. Please login manually.');
+            learningLanguages: formData.learningLanguages || ['en'],
+            nativeLanguage: formData.nativeLanguage || 'en',
+          }),
+        });
+      } catch (fetchError: any) {
+        // Handle network errors (fetch failed, server not running, etc.)
+        console.error('[signup] ❌ Fetch error (network/server issue):', fetchError);
+        setError('Failed to connect to server. Please make sure the development server is running and try again.');
         setLoading(false);
         return;
       }
 
-      // Store credentials for offline access
-      if (loginData.user && loginData.session) {
-        const { storeOfflineAuth, hashPassword, storeOfflineUser } = await import('../../../lib/offlineAuth');
-        storeOfflineAuth(formData.email, hashPassword(formData.password));
+      // Parse JSON response safely
+      let apiResult: SignupResponse | null = null;
+      let responseText = '';
+      
+      try {
+        // Get response as text first (we can't call both .text() and .json())
+        responseText = await apiResponse.text();
+        
+        // Try to parse as JSON
+        if (responseText) {
+          try {
+            apiResult = JSON.parse(responseText);
+            console.log('[signup] Parsed API response:', apiResult);
+          } catch (jsonError) {
+            // If JSON parsing fails, log the raw text
+            console.error('[signup] Failed to parse response as JSON:', jsonError);
+            console.error('[signup] Raw response text:', responseText.substring(0, 500));
+            // Try to extract error message from text response
+            const errorMatch = responseText.match(/"error":\s*"([^"]+)"/) || 
+                             responseText.match(/"message":\s*"([^"]+)"/);
+            const extractedError = errorMatch ? errorMatch[1] : 'Failed to create account. Please try again.';
+            setError(extractedError);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (parseError) {
+        console.error('[signup] Failed to read API response:', parseError);
+        setError('Failed to create account. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      if (!apiResponse.ok) {
+        // Extract error message from various possible locations
+        let errorMessage = apiResult?.error || apiResult?.message || '';
+        
+        // If no error message found, try to extract from details
+        if (!errorMessage && apiResult) {
+          // Check details object
+          if (apiResult.details) {
+            if (typeof apiResult.details === 'string') {
+              errorMessage = apiResult.details;
+            } else if (typeof apiResult.details === 'object') {
+              const details = apiResult.details as any;
+              errorMessage = details.profileError?.message || 
+                           details.usersError?.message ||
+                           details.profileError || 
+                           details.usersError || 
+                           details.hint ||
+                           details.suggestion ||
+                           details.message ||
+                           '';
+              
+              // If we have error code, add helpful context
+              if (details.errorCode && !errorMessage) {
+                const code = details.errorCode;
+                if (code === '42P01') {
+                  errorMessage = 'Database table does not exist. Please run the database setup script.';
+                } else if (code === '42501') {
+                  errorMessage = 'Permission denied. Please check RLS policies.';
+                } else if (code === '23503') {
+                  errorMessage = 'Foreign key constraint violation.';
+                }
+              }
+            }
+          }
+        }
+        
+        // Fallback error message
+        if (!errorMessage || errorMessage.trim() === '') {
+          errorMessage = `Unable to create account. Server returned status ${apiResponse.status}. Please try again.`;
+        }
+        
+        // Log detailed error for debugging
+        console.error('[signup] API error response:', {
+          status: apiResponse.status,
+          statusText: apiResponse.statusText,
+          responseText: responseText.substring(0, 1000),
+          apiResult: apiResult ? JSON.parse(JSON.stringify(apiResult)) : null,
+          parsedError: apiResult?.error,
+          parsedMessage: apiResult?.message,
+          parsedDetails: apiResult?.details,
+          finalErrorMessage: errorMessage
+        });
+        
+        setError(errorMessage);
+        setLoading(false);
+        return;
+      }
+
+      // Check if signup was successful
+      if (!apiResponse.ok || !apiResult || !apiResult.success || !apiResult.user) {
+        // Error already handled above, just return
+        return;
+      }
+
+      console.log('[signup] ✅ Account created successfully');
+
+      // Signup successful - attempt to sign in automatically
+      // The API doesn't return a session, so we need to sign in with the credentials
+      console.log('[signup] Attempting auto-login...');
+      
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      });
+
+      if (loginError) {
+        // If auto-login fails (e.g., email confirmation required), still redirect to dashboard
+        // User can complete email verification and login from there
+        console.warn('[signup] Auto-login failed:', loginError.message);
+        
+        // Set flag for ProtectedRoute to wait longer
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('just_signed_up', 'true');
+        }
+        
+        setSuccess(true);
+        setLoading(false);
+        console.log('[signup] Redirecting to dashboard (email confirmation may be required)...');
+        router.push('/dashboard');
+        return;
+      }
+
+      // Auto-login successful - verify we have a session
+      if (!loginData || !loginData.user || !loginData.session) {
+        console.warn('[signup] Auto-login succeeded but no session found, redirecting to dashboard...');
+        // Account was created successfully, redirect to dashboard
+        // User can login from there if needed
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('just_signed_up', 'true');
+        }
+        setSuccess(true);
+        setLoading(false);
+        router.push('/dashboard');
+        return;
+      }
+
+      console.log('[signup] Auto-login successful, storing credentials...');
+
+      // Store credentials for offline access (same as login page)
+      try {
+        const { storeOfflineAuth, storeOfflineUser } = await import('../../../lib/offlineAuth');
+        await storeOfflineAuth(formData.email, formData.password);
         storeOfflineUser({
           id: loginData.user.id,
           email: formData.email,
@@ -187,70 +375,69 @@ export default function SignupPage() {
           level: 1,
           total_xp: 0,
           streak: 0,
-          learning_language: formData.learningLanguages[0] || 'ar',
+          learning_language: formData.learningLanguages[0] || 'en',
+          learning_languages: formData.learningLanguages || ['en'],
           native_language: formData.nativeLanguage,
           cachedAt: Date.now()
         });
+      } catch (offlineError) {
+        console.warn('[signup] Error storing offline credentials:', offlineError);
+        // Non-critical error, continue with redirect
       }
 
-      // Create user profile in database
-      if (loginData.user) {
-        try {
-          // Try to create profile in profiles table first
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([
-              {
-                id: loginData.user.id,
-                name: formData.name,
-                email: formData.email,
-                learning_languages: formData.learningLanguages,
-                base_language: formData.nativeLanguage,
-                level: 1,
-                total_xp: 0,
-                streak: 0
-              }
-            ]);
-
-          if (profileError) {
-            console.log('Profiles table failed, trying users table:', profileError.message);
-            
-            // Fallback: create profile in users table
-            const { error: usersError } = await supabase
-              .from('users')
-              .insert([
-                {
-                  id: loginData.user.id,
-                  name: formData.name,
-                  email: formData.email,
-                  learning_languages: formData.learningLanguages,
-                  native_language: formData.nativeLanguage,
-                  level: 1,
-                  total_xp: 0,
-                  streak: 0
-                }
-              ]);
-
-            if (usersError) {
-              // Continue anyway - the user is authenticated
-            } else {
-              console.log('User profile created successfully in users table');
-            }
-          } else {
-            console.log('User profile created successfully in profiles table');
-          }
-        } catch (profileError) {
-          // Continue anyway - the user is authenticated
+      // Verify session is persisted before proceeding
+      let sessionPersisted = false;
+      for (let i = 0; i < 10; i++) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          sessionPersisted = true;
+          console.log('[signup] Session verified and persisted');
+          break;
         }
+        console.log(`[signup] Session check attempt ${i + 1}/10, waiting...`);
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
-  
-      // Ensure auth context has the fresh session
-      try { await refreshUser(); } catch {}
-      // Success: redirect to dashboard
+
+      if (!sessionPersisted) {
+        console.error('[signup] Session not persisted after multiple attempts');
+        setError('Session not saved. Please try logging in manually.');
+        setLoading(false);
+        return;
+      }
+
+      // Set flag to indicate user just signed up (ProtectedRoute will wait longer)
+      // Set this BEFORE refreshing AuthContext
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('just_signed_up', 'true');
+        // Also set a timestamp so ProtectedRoute knows when signup happened
+        sessionStorage.setItem('just_signed_up_time', Date.now().toString());
+      }
+
+      // Refresh AuthContext to load the user before redirecting
+      console.log('[signup] Refreshing AuthContext...');
+      await refreshUser();
+      
+      // Wait longer for AuthContext to update and user to be loaded
+      let userLoaded = false;
+      for (let i = 0; i < 10; i++) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // Check if user is loaded in AuthContext
+          await new Promise(resolve => setTimeout(resolve, 300));
+          // The user should be loaded by now, but we'll let ProtectedRoute handle the final check
+          userLoaded = true;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
+      // Success: redirect to dashboard (same as login page)
       setSuccess(true);
-      setTimeout(() => router.replace('/dashboard'), 1200);
-  
+      setLoading(false);
+      console.log('[signup] Session verified, redirecting to dashboard...');
+      router.push('/dashboard');
     } catch (err) {
+      console.error('[signup] Unexpected error:', err);
       setError('Unexpected error: ' + (err instanceof Error ? err.message : 'Unknown'));
       setLoading(false);
     }
@@ -284,6 +471,18 @@ export default function SignupPage() {
       setLoading(false);
     }
   };
+
+  // Show loading state until mounted to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white text-lg">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (success) {
     return (

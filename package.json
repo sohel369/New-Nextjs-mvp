@@ -27,7 +27,8 @@
     "vercel:deploy": "vercel deploy",
     "vercel:deploy:force": "vercel deploy --force",
     "vercel:build": "vercel build",
-    "clean:install": "node -e \"const fs=require('fs');['node_modules','package-lock.json'].forEach(p=>{try{fs.rmSync(p,{recursive:true,force:true})}catch(e){}})\" && npm install"
+    "clean:install": "node -e \"const fs=require('fs');['node_modules','package-lock.json'].forEach(p=>{try{fs.rmSync(p,{recursive:true,force:true})}catch(e){}})\" && npm install",
+    "test:supabase": "node test-supabase.js"
   },
   "dependencies": {
     "@capacitor/cli": "^7.4.4",

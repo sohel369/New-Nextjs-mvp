@@ -286,23 +286,87 @@ export function useAICoachAudio() {
             try {
               console.log('[TTS] Web Speech API play() called');
               
+              // Check if speechSynthesis is available
+              if (!('speechSynthesis' in window)) {
+                throw new Error('Speech synthesis not available in this browser');
+              }
+              
               // Android: Cancel any ongoing speech first
               if (isAndroid) {
                 speechSynthesis.cancel();
                 // Small delay to ensure cancellation is complete
                 await new Promise(resolve => setTimeout(resolve, 100));
-              }
-              
-              // Check if speechSynthesis is available
-              if (!('speechSynthesis' in window)) {
-                throw new Error('Speech synthesis not available');
+              } else {
+                // For other browsers, also cancel to ensure clean start
+                speechSynthesis.cancel();
+                await new Promise(resolve => setTimeout(resolve, 50));
               }
               
               console.log('[TTS] Calling speechSynthesis.speak()');
-              speechSynthesis.speak(utterance);
-              setIsPlaying(true);
-              setIsPaused(false);
-              console.log('[TTS] Speech started');
+              
+              // Use a promise to handle the speech start
+              return new Promise<void>((resolve, reject) => {
+                let resolved = false;
+                
+                // Set up error handler before speaking
+                const errorHandler = (event: SpeechSynthesisErrorEvent) => {
+                  if (resolved) return;
+                  resolved = true;
+                  
+                  utterance.onerror = null;
+                  utterance.onstart = null;
+                  console.error('[TTS] Speech error:', event.error);
+                  
+                  // "interrupted" and "canceled" are not real errors
+                  if (event.error !== 'interrupted' && event.error !== 'canceled') {
+                    const errorMsg = `Speech synthesis error: ${event.error}`;
+                    setError(errorMsg);
+                    setIsPlaying(false);
+                    reject(new Error(errorMsg));
+                  } else {
+                    // For interrupted/canceled, just resolve (not an error)
+                    resolve();
+                  }
+                };
+                
+                const startHandler = () => {
+                  if (resolved) return;
+                  resolved = true;
+                  
+                  utterance.onerror = null;
+                  utterance.onstart = null;
+                  console.log('[TTS] Speech started successfully');
+                  setIsPlaying(true);
+                  setIsPaused(false);
+                  resolve();
+                };
+                
+                utterance.onerror = errorHandler;
+                utterance.onstart = startHandler;
+                
+                // Start speaking
+                speechSynthesis.speak(utterance);
+                
+                // Fallback timeout in case onstart doesn't fire
+                setTimeout(() => {
+                  if (!resolved) {
+                    // Check if speech actually started
+                    if (speechSynthesis.speaking) {
+                      resolved = true;
+                      setIsPlaying(true);
+                      setIsPaused(false);
+                      resolve();
+                    } else {
+                      // Speech didn't start, might need user interaction
+                      console.warn('[TTS] Speech may require user interaction');
+                      resolved = true;
+                      setIsPlaying(true);
+                      setIsPaused(false);
+                      resolve(); // Resolve anyway to allow retry
+                    }
+                  }
+                }, 500);
+              });
             } catch (error) {
               console.error('[TTS] Failed to speak:', error);
               setIsPlaying(false);
@@ -411,7 +475,8 @@ export function useAICoachAudio() {
   const playAIResponse = useCallback(async (text: string, language: string = 'en') => {
     if (!settings?.sound_enabled) {
       console.log('[TTS] Sound is disabled, not playing');
-      return;
+      setError('Sound is disabled. Please enable sound in settings.');
+      return null;
     }
 
     try {
@@ -421,16 +486,25 @@ export function useAICoachAudio() {
       if (!controls) {
         console.error('[TTS] No controls returned from playText');
         setError('Failed to initialize audio playback');
-        return;
+        return null;
       }
       
       console.log('[TTS] Controls received, calling play()');
-      await controls.play();
-      console.log('[TTS] Play() called successfully');
+      try {
+        await controls.play();
+        console.log('[TTS] Play() called successfully');
+      } catch (playError) {
+        console.error('[TTS] Error calling play():', playError);
+        // Still return controls so the user can try again
+        setError(playError instanceof Error ? playError.message : 'Failed to start audio playback. Try clicking play again.');
+        // Return controls anyway so user can manually retry
+        return controls;
+      }
       return controls;
     } catch (error) {
       console.error('[TTS] Failed to play AI response:', error);
       setError(error instanceof Error ? error.message : 'Failed to play audio');
+      return null;
     }
   }, [playText, settings]);
 

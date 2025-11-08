@@ -13,6 +13,7 @@ import GlobalThemeProvider from "../components/GlobalThemeProvider";
 import CapacitorInitializer from "../components/CapacitorInitializer";
 import PWARegister from "../components/PWARegister";
 import OfflineIndicator from "../components/OfflineIndicator";
+import PWAInstallPrompt from "../components/PWAInstallPrompt";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -61,6 +62,7 @@ export default function RootLayout({
         <CapacitorInitializer />
         <PWARegister />
         <OfflineIndicator />
+        <PWAInstallPrompt />
         <ErrorBoundary>
           <AuthProvider>
             <SettingsProvider>

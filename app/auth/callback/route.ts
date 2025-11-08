@@ -1,10 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { getRedirectUrl } from '../../../lib/config';
 
-// Use the centralized Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ufvuvkrinmkkoowngioe.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmdnV2a3Jpbm1ra29vd25naW9lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1NDI0NjAsImV4cCI6MjA3NTExODQ2MH0.hl452FRWQmS51DQeL9AYZjfiinptZg2ewPWVjEhCaDc';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmdnV2a3Jpbm1ra29vd25naW9lIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTU0MjQ2MCwiZXhwIjoyMDc1MTE4NDYwfQ.LXiIwSzsrqPxpiMm0CWJBuauOXhvzZapmM9tgW0-7O0';
+// Use the centralized Supabase client (anon key only - no service role needed)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://uaijcvhvyurbnfmkqnqt.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhaWpjdmh2eXVyYm5mbWtxbnF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAyMTU3NzksImV4cCI6MjA3NTc5MTc3OX0.FbBITvB9ITLt7L3e5BAiP4VYa0Qw7YCOx-SHHl1k8zY';
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -13,7 +13,6 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true
   }
 });
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -31,16 +30,22 @@ export async function GET(request: NextRequest) {
     next
   });
 
+  // Get redirect URL using helper function
+  // For server-side, use origin from request or environment variable
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                  process.env.NEXT_PUBLIC_SITE_URL || 
+                  origin;
+
   // Handle OAuth errors
   if (error) {
     console.error('OAuth error:', error, errorDescription);
-    return NextResponse.redirect(`${origin}/auth/auth-code-error?error=${encodeURIComponent(error)}&description=${encodeURIComponent(errorDescription || '')}`);
+    return NextResponse.redirect(`${baseUrl}/auth/auth-code-error?error=${encodeURIComponent(error)}&description=${encodeURIComponent(errorDescription || '')}`);
   }
 
   // Handle missing code
   if (!code) {
     console.error('No authorization code received');
-    return NextResponse.redirect(`${origin}/auth/auth-code-error?error=no_code&description=No authorization code received`);
+    return NextResponse.redirect(`${baseUrl}/auth/auth-code-error?error=no_code&description=No authorization code received`);
   }
 
   try {
@@ -74,12 +79,12 @@ export async function GET(request: NextRequest) {
         errorMessage = 'Server error occurred during authentication. Please try again.';
       }
       
-      return NextResponse.redirect(`${origin}/auth/auth-code-error?error=exchange_failed&description=${encodeURIComponent(errorMessage)}`);
+      return NextResponse.redirect(`${baseUrl}/auth/auth-code-error?error=exchange_failed&description=${encodeURIComponent(errorMessage)}`);
     }
 
     if (!data?.user) {
       console.error('No user data received after code exchange');
-      return NextResponse.redirect(`${origin}/auth/auth-code-error?error=no_user&description=No user data received after authentication`);
+      return NextResponse.redirect(`${baseUrl}/auth/auth-code-error?error=no_user&description=No user data received after authentication`);
     }
 
     console.log('Successfully authenticated user:', {
@@ -167,11 +172,11 @@ export async function GET(request: NextRequest) {
 
     // Redirect to language selection for new users, dashboard for existing users
     console.log('Redirecting after successful authentication');
-    return NextResponse.redirect(`${origin}/language-selection`);
+    return NextResponse.redirect(`${baseUrl}/language-selection`);
 
   } catch (error) {
     console.error('Unexpected error in OAuth callback:', error);
-    return NextResponse.redirect(`${origin}/auth/auth-code-error?error=unexpected&description=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`);
+    return NextResponse.redirect(`${baseUrl}/auth/auth-code-error?error=unexpected&description=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`);
   }
 }
 

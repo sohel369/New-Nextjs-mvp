@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage, languages } from '../contexts/LanguageContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
 import { useTranslation } from '../hooks/useTranslation';
-import { supabase } from '../lib/supabase';
+import { supabase, logSupabaseError } from '../lib/supabase';
 import SimpleNotificationPopup from './SimpleNotificationPopup';
 import { 
   Globe, 
@@ -65,33 +65,80 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
   }, [user]);
 
   const loadUserSettings = async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       
-      // Load user profile
+      // Check session first
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.warn('[ProfileSettings] No active session');
+        setLoading(false);
+        return;
+      }
+
+      // Load user profile using maybeSingle() to avoid errors for new users
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('base_language, learning_languages')
-        .eq('id', user?.id)
-        .single();
+        .eq('id', user.id)
+        .maybeSingle();
 
+      // Log all errors with full details for debugging (only if error has content)
       if (profileError) {
-        console.error('Error loading profile:', profileError);
-      } else {
+        // Check if error is not an empty object before logging
+        const isErrorObject = typeof profileError === 'object' && profileError !== null;
+        const errorKeys = isErrorObject ? Object.keys(profileError) : [];
+        const isEmptyObject = isErrorObject && errorKeys.length === 0;
+        const hasMessage = profileError.message && typeof profileError.message === 'string' && profileError.message.trim().length > 0;
+        const hasCode = profileError.code && (typeof profileError.code === 'string' || typeof profileError.code === 'number');
+        
+        // Only log if error has meaningful content
+        if (!isEmptyObject && (hasMessage || hasCode || profileError.details || profileError.hint)) {
+          logSupabaseError('Error loading profile', profileError, { 
+            userId: user.id,
+            sessionUserId: session.user.id,
+            hasSession: !!session
+          });
+        }
+      }
+      
+      if (profile) {
         setBaseLanguage(profile?.base_language || 'en');
         setLearningLanguages(profile?.learning_languages || ['en']);
       }
 
-      // Load user settings
+      // Load user settings using maybeSingle() to avoid errors for new users
       const { data: userSettings, error: settingsError } = await supabase
         .from('user_settings')
         .select('*')
-        .eq('user_id', user?.id)
-        .single();
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      if (settingsError && settingsError.code !== 'PGRST116') {
-        console.error('Error loading settings:', settingsError);
-      } else if (userSettings) {
+      // Log all errors with full details for debugging (only if error has content)
+      if (settingsError) {
+        // Check if error is not an empty object before logging
+        const isErrorObject = typeof settingsError === 'object' && settingsError !== null;
+        const errorKeys = isErrorObject ? Object.keys(settingsError) : [];
+        const isEmptyObject = isErrorObject && errorKeys.length === 0;
+        const hasMessage = settingsError.message && typeof settingsError.message === 'string' && settingsError.message.trim().length > 0;
+        const hasCode = settingsError.code && (typeof settingsError.code === 'string' || typeof settingsError.code === 'number');
+        
+        // Only log if error has meaningful content
+        if (!isEmptyObject && (hasMessage || hasCode || settingsError.details || settingsError.hint)) {
+          logSupabaseError('Error loading settings', settingsError, { 
+            userId: user.id,
+            sessionUserId: session.user.id,
+            hasSession: !!session
+          });
+        }
+      }
+      
+      if (userSettings) {
         setSettings({
           dark_mode: userSettings.dark_mode ?? true,
           notifications_enabled: userSettings.notifications_enabled ?? true,
@@ -117,11 +164,34 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
           });
         
         if (createError) {
-          console.error('Error creating default settings:', createError);
+          // Check if error is not an empty object before logging
+          const isErrorObject = typeof createError === 'object' && createError !== null;
+          const errorKeys = isErrorObject ? Object.keys(createError) : [];
+          const isEmptyObject = isErrorObject && errorKeys.length === 0;
+          const hasMessage = createError.message && typeof createError.message === 'string' && createError.message.trim().length > 0;
+          const hasCode = createError.code && (typeof createError.code === 'string' || typeof createError.code === 'number');
+          
+          // Only log if error has meaningful content
+          if (!isEmptyObject && (hasMessage || hasCode || createError.details || createError.hint)) {
+            logSupabaseError('Error creating default settings', createError, { userId: user.id });
+          }
         }
       }
     } catch (error) {
-      console.error('Error loading settings:', error);
+      const errorCode = (error as any)?.code;
+      if (errorCode !== 'PGRST116') {
+        // Check if error has meaningful content before logging
+        const isErrorObject = typeof error === 'object' && error !== null;
+        const errorKeys = isErrorObject ? Object.keys(error) : [];
+        const isEmptyObject = isErrorObject && errorKeys.length === 0;
+        const errorMessage = error instanceof Error ? error.message : (typeof error === 'string' ? error : null);
+        const hasMessage = errorMessage && errorMessage.trim().length > 0;
+        
+        // Only log if error has meaningful content
+        if (!isEmptyObject && (hasMessage || (error as any)?.code || (error as any)?.details || (error as any)?.hint)) {
+          logSupabaseError('Unexpected error loading settings', error, { userId: user?.id });
+        }
+      }
     } finally {
       setLoading(false);
     }

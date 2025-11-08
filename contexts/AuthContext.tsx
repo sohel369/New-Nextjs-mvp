@@ -143,25 +143,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state change:', event, session?.user?.id);
-        
-        const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+        console.log('[Auth] Auth state change:', event, session?.user?.id);
         
         if (event === 'SIGNED_IN' && session?.user) {
+          console.log('[Auth] User signed in, refreshing user data...');
           await refreshUser();
         } else if (event === 'SIGNED_OUT') {
-          // Only clear user if we're online - preserve user state when offline
-          if (!isOffline) {
-            setUser(null);
-            setLoading(false);
-          } else {
-            console.log('[Auth] SIGNED_OUT event while offline - preserving user state');
-            // Don't clear user - might be a network issue
+          console.log('[Auth] User signed out, clearing state...');
+          // Always clear user state on SIGNED_OUT event
+          setUser(null);
+          setLoading(false);
+          setAuthChecked(true);
+          setInitialized(false);
+          
+          // Clear storage but don't clear logging_out flag if it exists (to prevent redirect)
+          if (typeof window !== 'undefined') {
+            try {
+              // Clear offline auth data
+              try {
+                const { clearOfflineAuth } = require('../lib/offlineAuth');
+                clearOfflineAuth();
+                console.log('[Auth] ✅ Cleared offline auth data on SIGNED_OUT');
+              } catch (offlineAuthError) {
+                console.warn('[Auth] Error clearing offline auth:', offlineAuthError);
+              }
+              
+              // Clear localStorage
+              Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('sb-') || 
+                    key.includes('supabase') || 
+                    key.includes('auth') ||
+                    key.includes('lingua-ai') ||
+                    key.includes('offline') ||
+                    key.includes('language_learning_quiz_progress') ||
+                    key.includes('daily_streak') ||
+                    key.includes('last_quiz_date')) {
+                  localStorage.removeItem(key);
+                }
+              });
+              // Don't clear sessionStorage completely - might have logging_out flag
+            } catch (e) {
+              // Ignore storage errors
+            }
           }
         } else if (event === 'TOKEN_REFRESHED') {
+          console.log('[Auth] Token refreshed');
           // Token was refreshed, update user if needed
-          // But skip if offline to avoid network calls
-          if (session?.user && user && !isOffline) {
+          if (session?.user && user) {
             // Only refresh if we already have a user to avoid loops
             await refreshUser();
           }
@@ -570,28 +598,142 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Clear user state immediately to prevent redirect loops
-      setUser(null);
-      setLoading(false);
+      console.log('[signOut] ========== STARTING LOGOUT PROCESS ==========');
       
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.log('Logout Error:', error.message);
-      } else {
-        console.log('Logged out successfully');
+      // Mark that we're logging out to prevent redirect to dashboard
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('logging_out', 'true');
+        sessionStorage.setItem('just_logged_out', 'true');
+        console.log('[signOut] Set logout flags in sessionStorage');
       }
       
-      // Force redirect to getting started page with a clean state
-      router.push('/');
-      // Force a page refresh to ensure clean state
-      window.location.href = '/';
-    } catch (error) {
-      console.error('Error signing out:', error);
-      // Even if there's an error, clear the user state
+      // Clear user state FIRST to prevent any redirects
+      console.log('[signOut] Clearing user state...');
       setUser(null);
       setLoading(false);
-      router.push('/');
-      window.location.href = '/';
+      setAuthChecked(true); // Set to true so components don't wait for auth check
+      setInitialized(false);
+      
+      // Sign out from Supabase
+      console.log('[signOut] Calling Supabase auth.signOut()...');
+      try {
+        const { error: signOutError } = await supabase.auth.signOut({ scope: 'global' });
+        if (signOutError) {
+          console.warn('[signOut] Supabase signOut error:', signOutError.message);
+          // Continue anyway - we'll clear storage and redirect
+        } else {
+          console.log('[signOut] ✅ Supabase signOut successful');
+        }
+      } catch (signOutErr) {
+        console.warn('[signOut] SignOut exception (continuing anyway):', signOutErr);
+      }
+      
+      // Clear all local storage and session storage
+      if (typeof window !== 'undefined') {
+        try {
+          console.log('[signOut] Clearing localStorage and sessionStorage...');
+          
+          // Clear offline auth data (offline user, offline auth, queued signups)
+          try {
+            const { clearOfflineAuth } = await import('../lib/offlineAuth');
+            clearOfflineAuth();
+            console.log('[signOut] ✅ Cleared offline auth data');
+          } catch (offlineAuthError) {
+            console.warn('[signOut] Error clearing offline auth:', offlineAuthError);
+          }
+          
+          // Clear all localStorage items related to Supabase
+          Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('sb-') || 
+                key.includes('supabase') || 
+                key.includes('auth') ||
+                key.includes('lingua-ai') ||
+                key.includes('offline') ||
+                key.includes('language_learning_quiz_progress') ||
+                key.includes('daily_streak') ||
+                key.includes('last_quiz_date')) {
+              localStorage.removeItem(key);
+            }
+          });
+          
+          // Clear sessionStorage except logout flags (we'll clear them after redirect)
+          Object.keys(sessionStorage).forEach(key => {
+            if (key !== 'logging_out' && key !== 'just_logged_out') {
+              sessionStorage.removeItem(key);
+            }
+          });
+          console.log('[signOut] ✅ Storage cleared');
+        } catch (storageError) {
+          console.error('[signOut] Error clearing storage:', storageError);
+        }
+      }
+      
+      // Wait a moment to ensure state is cleared
+      console.log('[signOut] Waiting 200ms for state to settle...');
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      console.log('[signOut] ========== REDIRECTING TO LOGIN PAGE ==========');
+      
+      // Use window.location.replace for a hard redirect (clears all state and prevents redirect loops)
+      // replace() is better than href because it doesn't add to browser history
+      if (typeof window !== 'undefined') {
+        // Clear ALL session storage to prevent any redirect loops
+        sessionStorage.clear();
+        
+        // Clear ALL local storage related to auth
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-') || 
+              key.includes('supabase') || 
+              key.includes('auth') ||
+              key.includes('lingua-ai')) {
+            localStorage.removeItem(key);
+          }
+        });
+        
+        // Small delay to ensure state is cleared, then redirect
+        setTimeout(() => {
+          // Use replace instead of href to prevent back button issues
+          // This will clear all React state and force a full page reload
+          window.location.replace('/auth/login');
+        }, 100);
+      }
+    } catch (error) {
+      console.error('[signOut] ❌ UNEXPECTED ERROR:', error);
+      
+      // Even on error, clear everything and redirect
+      setUser(null);
+      setLoading(false);
+      setAuthChecked(true); // Set to true so components don't wait
+      setInitialized(false);
+      
+      // Mark as logged out and force redirect
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('just_logged_out', 'true');
+        sessionStorage.removeItem('logging_out');
+        
+        try {
+          // Clear offline auth data
+          try {
+            const { clearOfflineAuth } = await import('../lib/offlineAuth');
+            clearOfflineAuth();
+          } catch (offlineAuthError) {
+            console.warn('[signOut] Error clearing offline auth in error handler:', offlineAuthError);
+          }
+          
+          // Clear all storage
+          localStorage.clear();
+          // Keep just_logged_out flag for a moment
+          const keysToKeep = ['just_logged_out'];
+          const keysToRemove = Object.keys(sessionStorage).filter(k => !keysToKeep.includes(k));
+          keysToRemove.forEach(key => sessionStorage.removeItem(key));
+        } catch (e) {
+          console.error('[signOut] Error in cleanup:', e);
+        }
+        
+        // Force hard redirect to login page
+        console.log('[signOut] Force redirecting to login page after error...');
+        window.location.replace('/auth/login');
+      }
     }
   };
 

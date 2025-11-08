@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
@@ -13,21 +13,45 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [mounted, setMounted] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
   const router = useRouter();
+
+  // Track client-side hydration to prevent hydration mismatches
+  useEffect(() => {
+    setMounted(true);
+    // Check offline status after mount
+    if (typeof navigator !== 'undefined') {
+      setIsOffline(!navigator.onLine);
+      
+      // Listen for online/offline events
+      const handleOnline = () => setIsOffline(false);
+      const handleOffline = () => setIsOffline(true);
+      
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+      
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    // Check offline status - use state if mounted, otherwise check navigator
+    const checkOffline = mounted ? isOffline : (typeof navigator !== 'undefined' && !navigator.onLine);
 
     try {
       // Always check for offline first - even if navigator.onLine says true
       // Network requests might still fail
       
       // If offline, always try cached credentials first
-      if (isOffline) {
+      if (checkOffline) {
         const { loginOffline } = await import('../../../lib/offlineAuth');
         const offlineUser = loginOffline(email);
         
@@ -55,6 +79,25 @@ export default function LoginPage() {
       // Online login - wrap in try-catch to handle network errors
       console.log('Attempting online login...');
       
+      // First, test connection to Supabase to catch CORS issues early (optional check)
+      // Use dynamic import to prevent blocking page load if there are import issues
+      try {
+        const { testSupabaseReachability } = await import('../../../lib/supabase');
+        if (testSupabaseReachability && typeof testSupabaseReachability === 'function') {
+          const reachabilityTest = await testSupabaseReachability();
+          if (reachabilityTest && !reachabilityTest.success && reachabilityTest.error?.isCorsError) {
+            const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+            console.error('[Login] ❌ CORS Error detected:', reachabilityTest.error);
+            setError(`CORS Error: Supabase is blocking requests from ${currentOrigin}. Please: 1) Go to Supabase Dashboard → Settings → API → Add "${currentOrigin}" to allowed origins, 2) Check if project is paused, 3) Restart dev server after updating CORS settings.`);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (reachabilityError: any) {
+        // If reachability test fails, continue with login attempt anyway
+        console.warn('[Login] Reachability test failed, continuing with login:', reachabilityError);
+      }
+      
       let data, error;
       try {
         const loginPromise = supabase.auth.signInWithPassword({
@@ -71,10 +114,36 @@ export default function LoginPage() {
         data = result.data;
         error = result.error;
       } catch (networkError: any) {
-        // Network error - treat as offline
-        console.log('[Login] Network error, trying offline login:', networkError.message);
+        // Network error - log full details for debugging
+        console.error('[Login] Network error caught:', {
+          message: networkError?.message,
+          name: networkError?.name,
+          stack: networkError?.stack,
+          cause: networkError?.cause,
+          error: networkError
+        });
         
-        // Try offline login
+        // Check if it's a CORS or fetch error
+        const isFetchError = networkError?.message?.includes('fetch') || 
+                            networkError?.message?.includes('Failed to fetch') ||
+                            networkError?.message?.includes('SupabaseConnectionError') ||
+                            networkError?.name === 'TypeError' ||
+                            networkError?.name === 'SupabaseConnectionError';
+        
+        if (isFetchError) {
+          const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+          console.error('[Login] ❌ Fetch failed - Common causes:');
+          console.error(`  1. CORS issue: Add ${currentOrigin} to Supabase allowed origins`);
+          console.error('  2. Supabase project paused: Check Supabase Dashboard');
+          console.error('  3. Network/firewall blocking connection');
+          console.error('  4. Incorrect Supabase URL in .env file');
+          
+          setError(`Failed to connect to Supabase. This is usually a CORS issue. Please: 1) Go to Supabase Dashboard → Settings → API → Add "${currentOrigin}" to allowed origins, 2) Check if project is paused, 3) Verify .env file has correct Supabase URL, 4) Restart dev server after updating CORS.`);
+          setLoading(false);
+          return;
+        }
+        
+        // Try offline login for other network errors
         const { loginOffline, storeOfflineUser } = await import('../../../lib/offlineAuth');
         const offlineUser = loginOffline(email);
         if (offlineUser) {
@@ -95,35 +164,88 @@ export default function LoginPage() {
       }
 
       if (error) {
-        // Check if it's a network error
-        if (error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('Failed')) {
-          console.log('[Login] Network error in response, trying offline login');
-          const { loginOffline, storeOfflineUser } = await import('../../../lib/offlineAuth');
-          const offlineUser = loginOffline(email);
-          if (offlineUser) {
-            try {
-              storeOfflineUser(offlineUser);
-            } catch (e) {
-              console.warn('Error storing offline user:', e);
+        console.error('[Login] Supabase auth error:', {
+          message: error.message,
+          status: error.status,
+          code: error.code,
+          name: error.name
+        });
+        
+        // Check if it's a CORS/network error (status 0 or AuthRetryableFetchError)
+        const isNetworkError = error.status === 0 || 
+                               error.name === 'AuthRetryableFetchError' ||
+                               error.name === 'SupabaseConnectionError' ||
+                               error.message?.includes('Failed to fetch') ||
+                               error.message?.includes('fetch') ||
+                               error.message?.includes('network') ||
+                               error.message?.includes('CORS');
+        
+        if (isNetworkError) {
+          const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+          console.log('[Login] Network/CORS error detected, trying offline login first...');
+          
+          // Try offline login first
+          try {
+            const { loginOffline, storeOfflineUser } = await import('../../../lib/offlineAuth');
+            const offlineUser = loginOffline(email);
+            if (offlineUser) {
+              try {
+                storeOfflineUser(offlineUser);
+              } catch (e) {
+                console.warn('Error storing offline user:', e);
+              }
+              router.push('/dashboard');
+              setTimeout(() => window.location.reload(), 500);
+              return;
             }
-            router.push('/dashboard');
-            setTimeout(() => window.location.reload(), 500);
-            return;
+          } catch (offlineError) {
+            console.warn('[Login] Offline login failed:', offlineError);
           }
+          
+          // If offline login fails, show CORS error message
+          const corsErrorMessage = `Connection Error: Cannot connect to Supabase\n\n` +
+            `This is a CORS (Cross-Origin) issue. Quick fix:\n\n` +
+            `1. Open: https://supabase.com/dashboard\n` +
+            `2. Select your project → Settings → API\n` +
+            `3. Find "CORS Configuration" or "Allowed Origins"\n` +
+            `4. Add this URL: ${currentOrigin}\n` +
+            `5. Click Save, then restart dev server\n\n` +
+            `Other checks:\n` +
+            `• Is Supabase project paused? (Resume it)\n` +
+            `• Check internet connection\n` +
+            `• Verify Supabase URL in .env file`;
+          
+          setError(corsErrorMessage);
+          setLoading(false);
+          return;
         }
         
-        console.error('Login Error:', error.message);
-        setError(error.message);
+        // Provide user-friendly error messages for other errors
+        let userMessage = error.message;
+        if (error.message?.includes('Invalid login credentials') || 
+            error.message?.includes('Invalid credentials')) {
+          userMessage = 'Invalid email or password. Please check your credentials and try again.';
+        } else if (error.message?.includes('Email not confirmed')) {
+          userMessage = 'Please verify your email address before logging in. Check your inbox for the verification link.';
+        } else if (error.message?.includes('Too many requests')) {
+          userMessage = 'Too many login attempts. Please wait a few minutes and try again.';
+        } else if (error.message) {
+          userMessage = error.message;
+        } else {
+          userMessage = 'Login failed. Please try again.';
+        }
+        
+        setError(userMessage);
         setLoading(false);
         return;
       }
 
       console.log('Login Success:', data);
       
-      // Store credentials for offline access (hash password first)
+      // Store credentials for offline access (password will be hashed internally)
       if (data.user && data.session) {
-        const { storeOfflineAuth, hashPassword } = await import('../../../lib/offlineAuth');
-        storeOfflineAuth(email, hashPassword(password));
+        const { storeOfflineAuth } = await import('../../../lib/offlineAuth');
+        await storeOfflineAuth(email, password);
         
         // Store user data for offline access
         const { storeOfflineUser } = await import('../../../lib/offlineAuth');
@@ -236,8 +358,8 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Offline Notice */}
-            {typeof navigator !== 'undefined' && !navigator.onLine && (
+            {/* Offline Notice - Only show after mount to prevent hydration mismatch */}
+            {mounted && isOffline && (
               <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 text-yellow-400 text-sm">
                 <div className="flex items-center space-x-2">
                   <span>📡</span>
@@ -248,8 +370,15 @@ export default function LoginPage() {
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-400 text-sm">
-                {error}
+              <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-400 text-sm whitespace-pre-line">
+                <div className="font-semibold mb-2">⚠️ {error.split('\n')[0]}</div>
+                {error.includes('\n') && (
+                  <div className="text-xs text-red-300/80 mt-2 space-y-1">
+                    {error.split('\n').slice(1).map((line, idx) => (
+                      <div key={idx}>{line}</div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

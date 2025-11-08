@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { 
   ArrowLeft, 
@@ -11,6 +12,7 @@ import {
   Flame, 
   Settings, 
   LogOut, 
+  
   Edit3,
   Trophy,
   Users,
@@ -40,6 +42,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useAccessibility } from '../../contexts/AccessibilityContext';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import ResponsiveTabs, { TabItem } from '../../components/ResponsiveTabs';
+import BottomNavigation from '../../components/BottomNavigation';
 import { supabase } from '../../lib/supabase';
 
 const languages = [
@@ -119,43 +122,22 @@ export default function ProfilePage() {
   }, [user?.name]);
 
   // Auto-create profile if user exists but has no name
-  useEffect(() => {
-    if (user && user.id && user.email && (!user.name || user.name === 'Guest')) {
-      console.log('User has no name, attempting to create profile...');
-      createUserProfile();
-    }
-  }, [user]);
+  // Use a ref to prevent multiple calls
+  const profileCreationRef = React.useRef(false);
+  const profileCreationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const saveNameRef = useRef(false);
+  const createProfileLoadingRef = useRef(false);
+  
   const [selectedLanguage, setSelectedLanguage] = useState('ar');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [showInterfaceLanguage, setShowInterfaceLanguage] = useState(false);
   
-
-  const handleSaveName = async () => {
-    if (!user || !editName.trim()) return;
+  // Define createUserProfile before useEffect that uses it
+  const createUserProfile = React.useCallback(async () => {
+    if (!user || createProfileLoadingRef.current) return;
     
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ name: editName.trim() })
-        .eq('id', user.id);
-
-      if (error) {
-        console.error('Error updating name:', error);
-        return;
-      }
-
-      // Update local user state
-      await refreshUser();
-      setIsEditing(false);
-    } catch (error) {
-      console.error('Error saving name:', error);
-    }
-  };
-
-  const createUserProfile = async () => {
-    if (!user) return;
-    
-    try {
+      createProfileLoadingRef.current = true;
       const response = await fetch('/api/create-profile', {
         method: 'POST',
         headers: {
@@ -173,21 +155,70 @@ export default function ProfilePage() {
       if (result.success) {
         console.log('Profile created successfully:', result);
         await refreshUser();
-        alert('Profile created successfully!');
       } else {
         console.error('Error creating profile:', result.error);
-        alert('Error creating profile: ' + result.error);
       }
     } catch (error) {
       console.error('Error creating profile:', error);
-      alert('Error creating profile: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      createProfileLoadingRef.current = false;
+    }
+  }, [user, refreshUser]);
+
+  useEffect(() => {
+    // Clear any pending timeout on cleanup
+    return () => {
+      if (profileCreationTimeoutRef.current) {
+        clearTimeout(profileCreationTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (user && user.id && user.email && (!user.name || user.name === 'Guest') && !profileCreationRef.current) {
+      profileCreationRef.current = true;
+      console.log('User has no name, attempting to create profile...');
+      createUserProfile().finally(() => {
+        // Reset after a delay to allow retry if needed
+        profileCreationTimeoutRef.current = setTimeout(() => {
+          profileCreationRef.current = false;
+        }, 5000);
+      });
+    }
+  }, [user?.id, user?.email, user?.name, createUserProfile]);
+  
+  const handleSaveName = async () => {
+    if (!user || !editName.trim() || saveNameRef.current) return;
+    
+    try {
+      saveNameRef.current = true;
+      const { error } = await supabase
+        .from('profiles')
+        .update({ name: editName.trim() })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error updating name:', error);
+        return;
+      }
+
+      // Update local user state
+      await refreshUser();
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving name:', error);
+    } finally {
+      saveNameRef.current = false;
     }
   };
 
+  const updateLanguagesRef = useRef(false);
+  
   const updateUserLanguages = async (nativeLang: string, learningLang: string) => {
-    if (!user) return;
+    if (!user || updateLanguagesRef.current) return;
     
     try {
+      updateLanguagesRef.current = true;
       // Use public.profiles table (correct approach)
       const { data, error } = await supabase
         .from('profiles')
@@ -202,21 +233,78 @@ export default function ProfilePage() {
 
       if (error) {
         console.error('Error updating languages in profiles table:', error);
-        alert('Error updating languages: ' + error.message);
         return;
       }
 
       console.log('Languages updated successfully in profiles table:', data);
       await refreshUser();
-      alert('Languages updated successfully!');
     } catch (error) {
       console.error('Error updating languages:', error);
-      alert('Error updating languages: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      updateLanguagesRef.current = false;
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleSignOut = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Prevent double clicks
+    if (isLoggingOut) {
+      console.log('[Profile] Logout already in progress...');
+      return;
+    }
+    
+    setIsLoggingOut(true);
+    console.log('[Profile] 🚪 Logout button clicked, starting signOut...');
+    
+    // Disable the button immediately
+    const button = e.currentTarget;
+    if (button) {
+      button.disabled = true;
+      button.style.opacity = '0.5';
+      button.style.cursor = 'not-allowed';
+    }
+    
+    // Direct logout - clear everything and redirect immediately
+    if (typeof window !== 'undefined') {
+      try {
+        // Sign out from Supabase (don't wait for it)
+        supabase.auth.signOut({ scope: 'global' }).catch(() => {});
+        
+        // Clear all localStorage
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-') || 
+              key.includes('supabase') || 
+              key.includes('auth') ||
+              key.includes('lingua-ai') ||
+              key.includes('offline')) {
+            localStorage.removeItem(key);
+          }
+        });
+        
+        // Clear all sessionStorage
+        sessionStorage.clear();
+        
+        // Call signOut from context (non-blocking)
+        if (signOut) {
+          signOut().catch(() => {});
+        }
+        
+        console.log('[Profile] ✅ Storage cleared, redirecting to login...');
+        
+        // Force immediate redirect using replace (clears history)
+        window.location.replace('/auth/login');
+      } catch (error) {
+        console.error('[Profile] ❌ Error during logout:', error);
+        // Even on error, force redirect
+        sessionStorage.clear();
+        localStorage.clear();
+        window.location.replace('/auth/login');
+      }
+    }
   };
 
   const handleLanguageChange = (langCode: string) => {
@@ -229,16 +317,20 @@ export default function ProfilePage() {
     // Handle interface language change
   };
 
+  const tabChangeRef = useRef(false);
+  
   const handleTabChange = (tabId: string) => {
-    if (tabId === currentTab) return;
+    if (tabId === currentTab || tabChangeRef.current) return;
     
+    tabChangeRef.current = true;
     setTabLoading(true);
     setCurrentTab(tabId);
     
-    // Simulate a small delay for smooth transition
+    // Small delay for smooth transition and to prevent rapid tab switching
     setTimeout(() => {
       setTabLoading(false);
-    }, 100);
+      tabChangeRef.current = false;
+    }, 200);
   };
 
 
@@ -330,10 +422,23 @@ export default function ProfilePage() {
               </button>
               <button
                     onClick={handleSignOut}
-                    className="px-4 py-2 bg-gradient-to-r from-red-500/20 to-pink-500/20 backdrop-blur-sm border border-red-400/30 text-white rounded-xl text-sm font-medium hover:from-red-500/30 hover:to-pink-500/30 transition-all duration-200 shadow-lg shadow-red-500/10"
+                    disabled={isLoggingOut}
+                    className={`px-4 py-2 bg-gradient-to-r from-red-500/20 to-pink-500/20 backdrop-blur-sm border border-red-400/30 text-white rounded-xl text-sm font-medium hover:from-red-500/30 hover:to-pink-500/30 transition-all duration-200 shadow-lg shadow-red-500/10 ${
+                      isLoggingOut ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                    type="button"
               >
-                    <LogOut className="w-4 h-4 inline mr-1" />
-                    Logout
+                    {isLoggingOut ? (
+                      <>
+                        <div className="w-4 h-4 inline-block mr-1 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Logging out...
+                      </>
+                    ) : (
+                      <>
+                        <LogOut className="w-4 h-4 inline mr-1" />
+                        Logout
+                      </>
+                    )}
               </button>
             </div>
           </div>
@@ -434,6 +539,8 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Tab Content Container */}
+        <div className="px-4 sm:px-6 py-6">
         {/* Stats Tab */}
         {currentTab === 'stats' && (
           <div className="space-y-6">
@@ -1009,62 +1116,11 @@ export default function ProfilePage() {
             )}
           </div>
         )}
-      </div>
-      
-      {/* Premium Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-50">
-        {/* Background Glow */}
-        <div className="absolute inset-0 bg-gradient-to-t from-purple-900/20 via-blue-900/10 to-transparent"></div>
-        
-        {/* Glassmorphism Navigation */}
-        <div className="relative backdrop-blur-2xl bg-white/5 border-t border-white/10">
-          <div className="flex items-center justify-around py-3 px-4">
-            {[
-              { href: '/', label: 'Home', icon: Home, gradient: 'from-blue-500 to-cyan-500' },
-              { href: '/lessons', label: 'Lessons', icon: BookOpen, gradient: 'from-green-500 to-emerald-500' },
-              { href: '/quiz', label: 'Quiz', icon: Target, gradient: 'from-yellow-500 to-orange-500' },
-              { href: '/ai-coach', label: 'AI Coach', icon: Bot, gradient: 'from-purple-500 to-pink-500' },
-              { href: '/profile', label: 'Profile', icon: User, gradient: 'from-indigo-500 to-purple-500', active: true }
-            ].map((item, index) => {
-              const Icon = item.icon;
-              return (
-              <Link
-                key={index}
-                href={item.href}
-                className={`relative group flex flex-col items-center space-y-1 min-w-0 flex-1 transition-all duration-300 ${
-                  item.active ? 'text-white' : 'text-white/60 hover:text-white'
-                }`}
-              >
-                {/* Active Background */}
-                {item.active && (
-                  <div className="absolute -top-2 -bottom-2 -left-2 -right-2 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-2xl blur-sm"></div>
-                )}
-                
-                {/* Icon Container */}
-                <div className={`relative p-2 rounded-xl transition-all duration-300 ${
-                  item.active 
-                    ? 'bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg shadow-purple-500/25' 
-                    : 'bg-white/10 group-hover:bg-white/20'
-                }`}>
-                  <Icon className="w-5 h-5" />
-                  
-                  {/* Hover Glow */}
-                  {!item.active && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity blur-sm -z-10"></div>
-                  )}
-                </div>
-                
-                {/* Label */}
-                <span className="text-xs font-medium truncate hidden sm:block">{item.label}</span>
-                
-                {/* Active Indicator */}
-                {item.active && (
-                  <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-white rounded-full"></div>
-                )}
-          </Link>
-              );
-            })}
         </div>
+      
+      {/* Bottom Navigation - Fixed */}
+      <div className="flex-shrink-0">
+        <BottomNavigation />
       </div>
     </div>
     </ProtectedRoute>
