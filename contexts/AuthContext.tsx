@@ -672,13 +672,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[signOut] Waiting 200ms for state to settle...');
       await new Promise(resolve => setTimeout(resolve, 200));
       
-      console.log('[signOut] ========== REDIRECTING TO LOGIN PAGE ==========');
+      console.log('[signOut] ========== REDIRECTING TO LANDING PAGE ==========');
       
       // Use window.location.replace for a hard redirect (clears all state and prevents redirect loops)
       // replace() is better than href because it doesn't add to browser history
       if (typeof window !== 'undefined') {
-        // Clear ALL session storage to prevent any redirect loops
+        // Set logout flags BEFORE clearing storage so landing page knows we're logging out
+        sessionStorage.setItem('just_logged_out', 'true');
+        sessionStorage.setItem('prevent_redirect', 'true');
+        
+        // Keep logout flags, clear everything else from sessionStorage
+        const justLoggedOut = sessionStorage.getItem('just_logged_out');
+        const preventRedirect = sessionStorage.getItem('prevent_redirect');
         sessionStorage.clear();
+        if (justLoggedOut) sessionStorage.setItem('just_logged_out', justLoggedOut);
+        if (preventRedirect) sessionStorage.setItem('prevent_redirect', preventRedirect);
         
         // Clear ALL local storage related to auth
         Object.keys(localStorage).forEach(key => {
@@ -730,8 +738,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('[signOut] Error in cleanup:', e);
         }
         
-        // Force hard redirect to home page
-        console.log('[signOut] Force redirecting to home page after error...');
+        // Set logout flags before redirecting
+        sessionStorage.setItem('just_logged_out', 'true');
+        sessionStorage.setItem('prevent_redirect', 'true');
+        
+        // Force hard redirect to landing page
+        console.log('[signOut] Force redirecting to landing page after error...');
         window.location.replace('/');
       }
     }

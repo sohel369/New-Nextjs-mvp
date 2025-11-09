@@ -271,6 +271,10 @@ export default function ProfilePage() {
     // Direct logout - clear everything and redirect immediately
     if (typeof window !== 'undefined') {
       try {
+        // Set logout flag BEFORE clearing storage so landing page knows we're logging out
+        sessionStorage.setItem('just_logged_out', 'true');
+        sessionStorage.setItem('prevent_redirect', 'true');
+        
         // Sign out from Supabase (don't wait for it)
         supabase.auth.signOut({ scope: 'global' }).catch(() => {});
         
@@ -285,28 +289,29 @@ export default function ProfilePage() {
           }
         });
         
-        // Clear all sessionStorage
+        // Keep logout flags in sessionStorage, clear everything else
+        const justLoggedOut = sessionStorage.getItem('just_logged_out');
+        const preventRedirect = sessionStorage.getItem('prevent_redirect');
         sessionStorage.clear();
+        if (justLoggedOut) sessionStorage.setItem('just_logged_out', justLoggedOut);
+        if (preventRedirect) sessionStorage.setItem('prevent_redirect', preventRedirect);
         
         // Call signOut from context (non-blocking)
         if (signOut) {
           signOut().catch(() => {});
         }
         
-        console.log('[Profile] ✅ Storage cleared, redirecting to home page in 1 second...');
+        console.log('[Profile] ✅ Storage cleared, redirecting to landing page...');
         
-        // Redirect to home page after 1 second delay
-        setTimeout(() => {
-          window.location.replace('/');
-        }, 1000);
+        // Redirect to landing page immediately
+        window.location.replace('/');
       } catch (error) {
         console.error('[Profile] ❌ Error during logout:', error);
-        // Even on error, force redirect after 1 second
-        sessionStorage.clear();
+        // Even on error, set flags and force redirect
+        sessionStorage.setItem('just_logged_out', 'true');
+        sessionStorage.setItem('prevent_redirect', 'true');
         localStorage.clear();
-        setTimeout(() => {
-          window.location.replace('/');
-        }, 1000);
+        window.location.replace('/');
       }
     }
   };

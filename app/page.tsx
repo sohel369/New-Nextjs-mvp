@@ -54,6 +54,23 @@ export default function Home() {
     // Only run on client side after hydration
     if (!mounted) return;
 
+    // Check if we just logged out - if so, clear the flag and don't redirect
+    if (typeof window !== 'undefined') {
+      const justLoggedOut = sessionStorage.getItem('just_logged_out');
+      const preventRedirectFlag = sessionStorage.getItem('prevent_redirect');
+      
+      if (justLoggedOut === 'true' || preventRedirectFlag === 'true') {
+        console.log('[Home] User just logged out, preventing redirect to dashboard');
+        setPreventRedirect(true);
+        // Clear the flags after a short delay
+        setTimeout(() => {
+          sessionStorage.removeItem('just_logged_out');
+          sessionStorage.removeItem('prevent_redirect');
+        }, 1000);
+        return;
+      }
+    }
+
     // If we're on login page or auth pages, don't redirect
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
@@ -68,6 +85,15 @@ export default function Home() {
       const timer = setTimeout(() => {
         // Final check - make sure user still exists and we're not logging out
         if (user && !preventRedirect) {
+          // Check again for logout flags
+          if (typeof window !== 'undefined') {
+            const justLoggedOut = sessionStorage.getItem('just_logged_out');
+            const preventRedirectFlag = sessionStorage.getItem('prevent_redirect');
+            if (justLoggedOut === 'true' || preventRedirectFlag === 'true') {
+              console.log('[Home] Logout detected during redirect check, cancelling redirect');
+              return;
+            }
+          }
           // Only redirect if we're not already on dashboard or profile
           if (typeof window !== 'undefined') {
             const path = window.location.pathname;
@@ -98,20 +124,30 @@ export default function Home() {
 
   // After mount, check if we should redirect (client-side only)
   // Show redirecting state if authenticated and not preventing redirect
-  if (authChecked && user && !preventRedirect) {
-    // Show redirecting state - useEffect will handle the actual redirect
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Redirecting to dashboard...</p>
+  // But first check if we just logged out
+  if (mounted && typeof window !== 'undefined') {
+    const justLoggedOut = sessionStorage.getItem('just_logged_out');
+    const preventRedirectFlag = sessionStorage.getItem('prevent_redirect');
+    
+    // If we just logged out, force show landing page (don't redirect to dashboard)
+    if (justLoggedOut === 'true' || preventRedirectFlag === 'true') {
+      // Force preventRedirect to true and show landing page
+      // The landing page will be shown below when !user check passes
+    } else if (authChecked && user && !preventRedirect) {
+      // Show redirecting state - useEffect will handle the actual redirect
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-white text-lg">Redirecting to dashboard...</p>
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
   }
 
-  // If not authenticated, show landing page
-  if (!user) {
+  // If not authenticated OR we just logged out, show landing page
+  if (!user || (mounted && typeof window !== 'undefined' && (sessionStorage.getItem('just_logged_out') === 'true' || sessionStorage.getItem('prevent_redirect') === 'true'))) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 pb-16 sm:pb-20" dir={isRTL ? 'rtl' : 'ltr'}>
         {/* Header */}
