@@ -5,6 +5,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { LESSONS_DATA, Lesson } from '../data/lessonsData';
 import { Clock, Star, Target, BookOpen, Play, Trophy } from 'lucide-react';
 import Link from 'next/link';
+import BottomNavigation from './BottomNavigation';
 
 interface LessonListProps {
   onSelectLesson?: (lesson: Lesson) => void;
@@ -43,7 +44,7 @@ export default function LessonList({ onSelectLesson, language, isRTL }: LessonLi
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 pb-16 sm:pb-20" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="max-w-7xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
@@ -154,6 +155,11 @@ export default function LessonList({ onSelectLesson, language, isRTL }: LessonLi
             <p className="text-white/50 text-sm sm:text-base">Try selecting a different level or language.</p>
           </div>
         )}
+      </div>
+      
+      {/* Bottom Navigation - Fixed */}
+      <div className="flex-shrink-0">
+        <BottomNavigation />
       </div>
     </div>
   );

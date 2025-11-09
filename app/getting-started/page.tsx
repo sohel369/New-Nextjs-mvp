@@ -85,16 +85,16 @@ export default function GettingStartedPage() {
   const currentStepData = steps[currentStep];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4 pb-20 sm:pb-24">
       <div className="w-full max-w-4xl">
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20">
           {/* Progress Indicator */}
-          <div className="flex items-center justify-center mb-8">
+          <div className="flex items-center justify-center mb-6 sm:mb-8">
             <div className="flex items-center space-x-2">
               {steps.map((_, index) => (
                 <div
                   key={index}
-                  className={`w-3 h-3 rounded-full transition-all ${
+                  className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all ${
                     index <= currentStep ? 'bg-purple-500' : 'bg-white/30'
                   }`}
                 />
@@ -103,28 +103,30 @@ export default function GettingStartedPage() {
           </div>
 
           {/* Step Content */}
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-6">
-              {currentStepData.icon}
+          <div className="text-center mb-6 sm:mb-8">
+            <div className="flex justify-center mb-4 sm:mb-6">
+              <div className="w-12 h-12 sm:w-16 sm:h-16">
+                {currentStepData.icon}
+              </div>
             </div>
             
-            <h1 className="text-3xl font-bold text-white mb-4">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-3 sm:mb-4 px-2">
               {currentStepData.title}
             </h1>
             
-            <h2 className="text-xl text-purple-300 mb-4">
+            <h2 className="text-lg sm:text-xl md:text-2xl text-purple-300 mb-3 sm:mb-4 px-2">
               {currentStepData.subtitle}
             </h2>
             
-            <p className="text-white/80 text-lg mb-6 max-w-2xl mx-auto">
+            <p className="text-white/80 text-base sm:text-lg md:text-xl mb-4 sm:mb-6 max-w-2xl mx-auto px-2">
               {currentStepData.description}
             </p>
 
             {/* Features List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 max-w-2xl mx-auto px-2">
               {currentStepData.features.map((feature, index) => (
-                <div key={index} className="flex items-center space-x-2 text-white/70">
-                  <Star className="w-4 h-4 text-yellow-400" />
+                <div key={index} className="flex items-center justify-center sm:justify-start space-x-2 text-white/70 text-sm sm:text-base">
+                  <Star className="w-4 h-4 text-yellow-400 flex-shrink-0" />
                   <span>{feature}</span>
                 </div>
               ))}
@@ -132,19 +134,19 @@ export default function GettingStartedPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
             <button
               onClick={handleSkip}
-              className="text-white/70 hover:text-white transition-colors"
+              className="text-white/70 hover:text-white transition-colors text-sm sm:text-base px-2 py-2 sm:py-0 order-2 sm:order-1"
             >
               Skip Introduction
             </button>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center justify-end sm:justify-start space-x-2 sm:space-x-4 order-1 sm:order-2">
               {currentStep > 0 && (
                 <button
                   onClick={() => setCurrentStep(currentStep - 1)}
-                  className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                  className="px-4 sm:px-6 py-2.5 sm:py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap"
                 >
                   Previous
                 </button>
@@ -152,22 +154,22 @@ export default function GettingStartedPage() {
               
               <button
                 onClick={handleNext}
-                className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors flex items-center space-x-2"
+                className="px-6 sm:px-8 py-2.5 sm:py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center space-x-2 text-sm sm:text-base whitespace-nowrap w-full sm:w-auto"
               >
                 <span>{currentStep === steps.length - 1 ? 'Get Started' : 'Next'}</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 flex-shrink-0" />
               </button>
             </div>
           </div>
         </div>
 
         {/* Additional Info */}
-        <div className="text-center mt-8">
-          <p className="text-white/50 text-sm">
+        <div className="text-center mt-6 sm:mt-8 px-2">
+          <p className="text-white/50 text-xs sm:text-sm">
             Already have an account?{' '}
             <button
               onClick={() => router.push('/auth/login')}
-              className="text-purple-400 hover:text-purple-300 transition-colors"
+              className="text-purple-400 hover:text-purple-300 transition-colors underline"
             >
               Sign in here
             </button>

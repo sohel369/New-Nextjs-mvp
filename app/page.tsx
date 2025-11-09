@@ -113,7 +113,7 @@ export default function Home() {
   // If not authenticated, show landing page
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 pb-16 sm:pb-20" dir={isRTL ? 'rtl' : 'ltr'}>
         {/* Header */}
         <header className="p-4 sm:p-6">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -465,7 +465,7 @@ export default function Home() {
 
   // Authenticated user - show full app interface (should redirect but fallback in case)
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 pb-16 sm:pb-20" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
       <header className="flex items-center justify-between p-3 sm:p-4 md:px-6 bg-gradient-to-r from-slate-800/80 to-purple-800/80 backdrop-blur-md fixed top-0 left-0 right-0 z-40">
         <div className="flex items-center space-x-2 sm:space-x-3">

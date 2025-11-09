@@ -694,7 +694,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTimeout(() => {
           // Use replace instead of href to prevent back button issues
           // This will clear all React state and force a full page reload
-          window.location.replace('/auth/login');
+          window.location.replace('/');
         }, 100);
       }
     } catch (error) {
@@ -730,9 +730,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('[signOut] Error in cleanup:', e);
         }
         
-        // Force hard redirect to login page
-        console.log('[signOut] Force redirecting to login page after error...');
-        window.location.replace('/auth/login');
+        // Force hard redirect to home page
+        console.log('[signOut] Force redirecting to home page after error...');
+        window.location.replace('/');
       }
     }
   };

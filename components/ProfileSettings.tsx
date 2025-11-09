@@ -295,35 +295,35 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Language Settings */}
-      <div className="bg-white/10 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-          <Globe className="w-5 h-5 mr-2" />
+      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 sm:p-6 border border-white/20">
+        <h3 className="text-base sm:text-lg font-semibold text-white mb-4 flex items-center">
+          <Globe className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           Language Settings
         </h3>
         
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Base Language */}
           <div>
-            <label className="block text-white/80 text-sm font-medium mb-3">
+            <label className="block text-white/80 text-xs sm:text-sm font-medium mb-2 sm:mb-3">
               Interface Language (App Language)
             </label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
               {availableLanguages.map((lang) => (
                 <button
                   key={lang.code}
                   onClick={() => setBaseLanguage(lang.code)}
-                  className={`p-3 rounded-lg border-2 transition-all ${
+                  className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
                     baseLanguage === lang.code
                       ? 'border-blue-500 bg-blue-500/20'
                       : 'border-white/20 bg-white/10 hover:border-white/40'
                   }`}
                 >
                   <div className="text-center">
-                    <div className="text-2xl mb-1">{lang.flag}</div>
-                    <div className="text-white text-sm font-medium">{lang.name}</div>
-                    <div className="text-white/70 text-xs">{lang.native}</div>
+                    <div className="text-xl sm:text-2xl mb-1">{lang.flag}</div>
+                    <div className="text-white text-xs sm:text-sm font-medium">{lang.name}</div>
+                    <div className="text-white/70 text-xs truncate">{lang.native}</div>
                   </div>
                 </button>
               ))}
@@ -332,32 +332,32 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
 
           {/* Learning Languages */}
           <div>
-            <label className="block text-white/80 text-sm font-medium mb-3">
+            <label className="block text-white/80 text-xs sm:text-sm font-medium mb-2 sm:mb-3">
               Learning Languages (Select one or more)
             </label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
               {availableLanguages.map((lang) => (
                 <button
                   key={lang.code}
                   onClick={() => handleLearningLanguageToggle(lang.code)}
-                  className={`p-3 rounded-lg border-2 transition-all ${
+                  className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
                     learningLanguages.includes(lang.code)
                       ? 'border-green-500 bg-green-500/20'
                       : 'border-white/20 bg-white/10 hover:border-white/40'
                   }`}
                 >
                   <div className="text-center">
-                    <div className="text-2xl mb-1">{lang.flag}</div>
-                    <div className="text-white text-sm font-medium">{lang.name}</div>
-                    <div className="text-white/70 text-xs">{lang.native}</div>
+                    <div className="text-xl sm:text-2xl mb-1">{lang.flag}</div>
+                    <div className="text-white text-xs sm:text-sm font-medium">{lang.name}</div>
+                    <div className="text-white/70 text-xs truncate">{lang.native}</div>
                     {learningLanguages.includes(lang.code) && (
-                      <Check className="w-4 h-4 text-green-400 mx-auto mt-1" />
+                      <Check className="w-3 h-3 sm:w-4 sm:h-4 text-green-400 mx-auto mt-1" />
                     )}
                   </div>
                 </button>
               ))}
             </div>
-            <p className="text-white/60 text-xs mt-2">
+            <p className="text-white/60 text-xs mt-2 sm:mt-3">
               Lessons and quizzes will be filtered based on your selected learning languages.
             </p>
           </div>
@@ -365,17 +365,17 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
       </div>
 
       {/* Appearance Settings */}
-      <div className="bg-white/10 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-          <Moon className="w-5 h-5 mr-2" />
+      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 sm:p-6 border border-white/20">
+        <h3 className="text-base sm:text-lg font-semibold text-white mb-4 flex items-center">
+          <Moon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           Appearance
         </h3>
         
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-white font-medium">Dark Mode</div>
-              <div className="text-white/70 text-sm">Use dark theme for the app</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="text-white font-medium text-sm sm:text-base">Dark Mode</div>
+              <div className="text-white/70 text-xs sm:text-sm">Use dark theme for the app</div>
             </div>
             <button
               onClick={() => handleSettingChange('dark_mode', !settings.dark_mode)}
@@ -389,10 +389,10 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
             </button>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-white font-medium">High Contrast</div>
-              <div className="text-white/70 text-sm">Increase contrast for better visibility</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="text-white font-medium text-sm sm:text-base">High Contrast</div>
+              <div className="text-white/70 text-xs sm:text-sm">Increase contrast for better visibility</div>
             </div>
             <button
               onClick={() => handleSettingChange('high_contrast', !settings.high_contrast)}
@@ -406,10 +406,10 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
             </button>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-white font-medium">Large Text</div>
-              <div className="text-white/70 text-sm">Increase text size for better readability</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="text-white font-medium text-sm sm:text-base">Large Text</div>
+              <div className="text-white/70 text-xs sm:text-sm">Increase text size for better readability</div>
             </div>
             <button
               onClick={() => handleSettingChange('large_text', !settings.large_text)}
@@ -426,17 +426,17 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
       </div>
 
       {/* Notification Settings */}
-      <div className="bg-white/10 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-          <Bell className="w-5 h-5 mr-2" />
+      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 sm:p-6 border border-white/20">
+        <h3 className="text-base sm:text-lg font-semibold text-white mb-4 flex items-center">
+          <Bell className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           Notifications
         </h3>
         
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-white font-medium">Enable Notifications</div>
-              <div className="text-white/70 text-sm">Receive learning reminders and updates</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="text-white font-medium text-sm sm:text-base">Enable Notifications</div>
+              <div className="text-white/70 text-xs sm:text-sm">Receive learning reminders and updates</div>
             </div>
             <button
               onClick={() => handleSettingChange('notifications_enabled', !settings.notifications_enabled)}
@@ -450,16 +450,16 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
             </button>
           </div>
           
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-white font-medium">Test Notification Popup</div>
-              <div className="text-white/70 text-sm">Show notification status popup</div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-0">
+            <div className="min-w-0 flex-1">
+              <div className="text-white font-medium text-sm sm:text-base">Test Notification Popup</div>
+              <div className="text-white/70 text-xs sm:text-sm">Show notification status popup</div>
             </div>
             <button
               onClick={() => {
                 setShowNotificationPopup(true);
               }}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors text-sm whitespace-nowrap w-full sm:w-auto"
             >
               Test Popup
             </button>
@@ -468,17 +468,17 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
       </div>
 
       {/* Audio Settings */}
-      <div className="bg-white/10 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-          <Volume2 className="w-5 h-5 mr-2" />
+      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 sm:p-6 border border-white/20">
+        <h3 className="text-base sm:text-lg font-semibold text-white mb-4 flex items-center">
+          <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           Audio
         </h3>
         
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-white font-medium">Enable Sound</div>
-              <div className="text-white/70 text-sm">Play audio for lessons and notifications</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="text-white font-medium text-sm sm:text-base">Enable Sound</div>
+              <div className="text-white/70 text-xs sm:text-sm">Play audio for lessons and notifications</div>
             </div>
             <button
               onClick={() => handleSettingChange('sound_enabled', !settings.sound_enabled)}
@@ -492,10 +492,10 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
             </button>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-white font-medium">Auto-play Audio</div>
-              <div className="text-white/70 text-sm">Automatically play audio in lessons</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="text-white font-medium text-sm sm:text-base">Auto-play Audio</div>
+              <div className="text-white/70 text-xs sm:text-sm">Automatically play audio in lessons</div>
             </div>
             <button
               onClick={() => handleSettingChange('auto_play_audio', !settings.auto_play_audio)}
@@ -512,18 +512,18 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
       </div>
 
       {/* Save Button */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0">
+        <div className="flex items-center space-x-2 min-w-0 flex-1">
           {error && (
-            <div className="flex items-center space-x-2 text-red-400">
-              <AlertCircle className="w-4 h-4" />
-              <span className="text-sm">{error}</span>
+            <div className="flex items-center space-x-2 text-red-400 text-sm sm:text-base">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span className="break-words">{error}</span>
             </div>
           )}
           {success && (
-            <div className="flex items-center space-x-2 text-green-400">
-              <Check className="w-4 h-4" />
-              <span className="text-sm">{success}</span>
+            <div className="flex items-center space-x-2 text-green-400 text-sm sm:text-base">
+              <Check className="w-4 h-4 flex-shrink-0" />
+              <span className="break-words">{success}</span>
             </div>
           )}
         </div>
@@ -531,7 +531,7 @@ export default function ProfileSettings({ onSettingsUpdate }: ProfileSettingsPro
         <button
           onClick={saveSettings}
           disabled={saving}
-          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2 px-6 rounded-lg transition-colors flex items-center space-x-2"
+          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2 px-4 sm:px-6 rounded-lg transition-colors flex items-center justify-center space-x-2 text-sm sm:text-base w-full sm:w-auto"
         >
           {saving ? (
             <RefreshCw className="w-4 h-4 animate-spin" />

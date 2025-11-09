@@ -6,6 +6,7 @@ import AICoachLanguageSelector from '../../components/AICoachLanguageSelector';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import BottomNavigation from '../../components/BottomNavigation';
 
 export default function AICoachPage() {
   const { currentLanguage, isRTL } = useLanguage();
@@ -27,8 +28,8 @@ export default function AICoachPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900" dir={isRTL ? 'rtl' : 'ltr'}>
-      <div className="p-4 sm:p-6 pb-20 sm:pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 pb-16 sm:pb-20 relative" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
           <Link href="/" className="inline-flex items-center space-x-2 text-white hover:text-purple-300 transition-colors">
             <ArrowLeft className="w-5 h-5" />
@@ -45,6 +46,9 @@ export default function AICoachPage() {
         
         <AICoach language={selectedLanguage || 'en'} isRTL={selectedLanguage === 'ar'} />
       </div>
+      
+      {/* Bottom Navigation - Fixed */}
+      <BottomNavigation />
     </div>
   );
 }

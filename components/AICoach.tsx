@@ -544,7 +544,7 @@ export default function AICoach({ language, isRTL = false, initialMessages, onNe
       </div>
 
       {/* Enhanced Input */}
-      <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-lg rounded-xl p-4 sm:p-6 border border-gray-700/50 shadow-lg">
+      <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-lg rounded-xl p-4 sm:p-6 border border-gray-700/50 shadow-lg mb-4 sm:mb-6">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-3">
           <div className="flex-1">
             <input

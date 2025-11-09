@@ -20,7 +20,7 @@ export default function BottomNavigation() {
   ];
 
   return (
-    <nav className="bg-gray-900/95 backdrop-blur-sm border-t border-gray-700 z-50 safe-area-pb" dir={isRTL ? 'rtl' : 'ltr'}>
+    <nav className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-t border-gray-700 z-[100] safe-area-pb" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className={`flex items-center justify-around py-1 sm:py-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
         {navItems.map((item) => {
           const isActive = pathname === item.href;

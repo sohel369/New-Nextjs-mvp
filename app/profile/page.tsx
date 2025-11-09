@@ -293,16 +293,20 @@ export default function ProfilePage() {
           signOut().catch(() => {});
         }
         
-        console.log('[Profile] ✅ Storage cleared, redirecting to login...');
+        console.log('[Profile] ✅ Storage cleared, redirecting to home page in 1 second...');
         
-        // Force immediate redirect using replace (clears history)
-        window.location.replace('/auth/login');
+        // Redirect to home page after 1 second delay
+        setTimeout(() => {
+          window.location.replace('/');
+        }, 1000);
       } catch (error) {
         console.error('[Profile] ❌ Error during logout:', error);
-        // Even on error, force redirect
+        // Even on error, force redirect after 1 second
         sessionStorage.clear();
         localStorage.clear();
-        window.location.replace('/auth/login');
+        setTimeout(() => {
+          window.location.replace('/');
+        }, 1000);
       }
     }
   };
@@ -468,7 +472,7 @@ export default function ProfilePage() {
             
             {/* Premium Tab Container */}
             <div className="relative backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-2">
-              <div className="flex overflow-x-auto scrollbar-hide gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {[
             {
               id: 'stats',
@@ -511,26 +515,35 @@ export default function ProfilePage() {
                       key={tab.id}
                       onClick={() => handleTabChange(tab.id)}
                       disabled={tabLoading}
-                      className={`relative group p-3 sm:p-4 rounded-2xl transition-all duration-300 flex-shrink-0 ${
+                      className={`relative group p-2 sm:p-3 lg:p-4 rounded-2xl transition-all duration-300 w-full ${
                         isActive
-                          ? `bg-gradient-to-br ${tab.gradient} text-white shadow-lg ${tab.glow}`
+                          ? `bg-gradient-to-br ${tab.gradient} text-white shadow-lg ${tab.glow} flex items-center justify-center`
                           : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
                       } ${tabLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={isActive ? tab.label : undefined}
                     >
                       {/* Active Glow Effect */}
                       {isActive && (
                         <div className={`absolute inset-0 bg-gradient-to-br ${tab.gradient} rounded-2xl blur-sm opacity-50 -z-10`}></div>
                       )}
                       
-                      <div className="flex items-center space-x-2 sm:space-x-3">
-                        <div className={`p-2 rounded-xl ${isActive ? 'bg-white/20' : 'bg-white/10 group-hover:bg-white/15'}`}>
-                          <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                      {isActive ? (
+                        // Active tab: Show only icon
+                        <div className={`p-2 sm:p-2.5 lg:p-3 rounded-xl bg-white/20`}>
+                          <Icon className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7" />
                         </div>
-                        <div className="hidden sm:block">
-                          <div className="font-semibold text-sm whitespace-nowrap">{tab.label}</div>
-                          <div className="text-xs opacity-75 hidden lg:block">{tab.description}</div>
+                      ) : (
+                        // Inactive tab: Show icon + text (responsive)
+                        <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-start space-y-1 sm:space-y-0 sm:space-x-2 lg:space-x-3">
+                          <div className={`p-1.5 sm:p-2 rounded-xl bg-white/10 group-hover:bg-white/15`}>
+                            <Icon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
+                          </div>
+                          <div className="text-center sm:text-left min-w-0 flex-1 hidden sm:block">
+                            <div className="font-semibold text-xs sm:text-sm whitespace-nowrap truncate">{tab.label}</div>
+                            <div className="text-xs opacity-75 hidden lg:block truncate">{tab.description}</div>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </button>
                   );
                 })}

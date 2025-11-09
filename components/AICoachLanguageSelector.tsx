@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Globe, Check, ArrowRight, Bot, MessageCircle } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
+import BottomNavigation from './BottomNavigation';
 
 interface AICoachLanguageSelectorProps {
   onLanguageSelect: (language: 'en' | 'ar') => void;
@@ -44,7 +45,7 @@ export default function AICoachLanguageSelector({ onLanguageSelect }: AICoachLan
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4 pb-20 sm:pb-24">
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
@@ -143,6 +144,11 @@ export default function AICoachLanguageSelector({ onLanguageSelect }: AICoachLan
             The AI coach will adapt to your selected language for the best learning experience.
           </p>
         </div>
+      </div>
+      
+      {/* Bottom Navigation - Fixed */}
+      <div className="flex-shrink-0">
+        <BottomNavigation />
       </div>
     </div>
   );

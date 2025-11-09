@@ -7,6 +7,7 @@ import AICoach from './AICoach';
 import LessonCompletionModal from './LessonCompletionModal';
 import { ArrowLeft, ArrowRight, CheckCircle, Clock, Trophy, Star, Target } from 'lucide-react';
 import Link from 'next/link';
+import BottomNavigation from './BottomNavigation';
 
 interface LessonDetailProps {
   lesson: Lesson;
@@ -189,7 +190,7 @@ export default function LessonDetail({ lesson, isRTL = false, onBack }: LessonDe
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 pb-16 sm:pb-20" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="max-w-7xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-4 sm:mb-6">
@@ -295,6 +296,11 @@ export default function LessonDetail({ lesson, isRTL = false, onBack }: LessonDe
             </div>
           </div>
         </div>
+      </div>
+      
+      {/* Bottom Navigation - Fixed */}
+      <div className="flex-shrink-0">
+        <BottomNavigation />
       </div>
     </div>
   );

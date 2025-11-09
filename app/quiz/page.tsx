@@ -344,9 +344,7 @@ export default function QuizPage() {
         </div>
 
         {/* Bottom Navigation - Fixed */}
-        <div className="fixed bottom-0 left-0 right-0 z-50">
-          <BottomNavigation />
-        </div>
+        <BottomNavigation />
       </div>
     </ProtectedRoute>
   );
