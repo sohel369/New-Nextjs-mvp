@@ -1,17 +1,20 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { initializeApp, getApps, getApp, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://uaijcvhvyurbnfmkqnqt.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhaWpjdmh2eXVyYm5mbWtxbnF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAyMTU3NzksImV4cCI6MjA3NTc5MTc3OX0.FbBITvB9ITLt7L3e5BAiP4VYa0Qw7YCOx-SHHl1k8zY';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhaWpjdmh2eXVyYm5mbWtxbnF0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDIxNTc3OSwiZXhwIjoyMDc1NzkxNzc5fQ.ZAMRcMEYtiF7lJjnrVzJvCqshe0QEDIopJ-P9fGDs-8';
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    detectSessionInUrl: true
+// Initialize Firebase Admin (server-side only)
+function getAdminDb() {
+  if (!getApps().length) {
+    initializeApp({
+      credential: cert({
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      }),
+    });
   }
-});
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+  return getFirestore(getApp());
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,31 +27,24 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Updating languages for user:', userId);
-    console.log('Native Language:', nativeLanguage);
-    console.log('Learning Language:', learningLanguage);
+    
+    const db = getAdminDb();
+    const profileRef = db.collection('profiles').doc(userId);
+    
+    await profileRef.set({
+      native_language: nativeLanguage,
+      learning_language: learningLanguage,
+      updated_at: new Date().toISOString()
+    }, { merge: true });
 
-    // Use public.profiles table (correct approach)
-    const { data: profilesData, error: profilesError } = await supabase
-      .from('profiles')
-      .upsert({
-        id: userId,
-        native_language: nativeLanguage,
-        learning_language: learningLanguage
-      })
-      .select()
-      .single();
-
-    if (profilesError) {
-      return NextResponse.json({ 
-        error: `Failed to update languages in profiles table: ${profilesError.message}` 
-      }, { status: 500 });
-    }
+    const updatedSnap = await profileRef.get();
+    const profilesData = updatedSnap.data();
 
     return NextResponse.json({ 
       success: true, 
       data: profilesData, 
       table: 'profiles',
-      message: 'Languages updated successfully in public.profiles table'
+      message: 'Languages updated successfully in profiles collection'
     });
 
   } catch (error) {
@@ -69,18 +65,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Try to get user data from both tables
-    const [profilesResult, usersResult] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', userId).single(),
-      supabase.from('users').select('*').eq('id', userId).single()
-    ]);
+    const db = getAdminDb();
+    const profileSnap = await db.collection('profiles').doc(userId).get();
 
     return NextResponse.json({
       success: true,
-      profiles: profilesResult.data,
-      users: usersResult.data,
-      profilesError: profilesResult.error?.message,
-      usersError: usersResult.error?.message
+      profiles: profileSnap.exists ? profileSnap.data() : null
     });
 
   } catch (error) {

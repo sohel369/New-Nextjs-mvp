@@ -4,8 +4,15 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
-import { supabase } from '../../../lib/supabase';
-import { getRedirectUrl } from '../../../lib/config';
+import { auth } from '../../../lib/firebase';
+import {
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  AuthError
+} from 'firebase/auth';
+
+const googleProvider = new GoogleAuthProvider();
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -14,261 +21,42 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [mounted, setMounted] = useState(false);
-  const [isOffline, setIsOffline] = useState(false);
   const router = useRouter();
 
-  // Track client-side hydration to prevent hydration mismatches
   useEffect(() => {
     setMounted(true);
-    // Check offline status after mount
-    if (typeof navigator !== 'undefined') {
-      setIsOffline(!navigator.onLine);
-      
-      // Listen for online/offline events
-      const handleOnline = () => setIsOffline(false);
-      const handleOffline = () => setIsOffline(true);
-      
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
-      
-      return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-      };
-    }
   }, []);
+
+  const getFriendlyError = (err: AuthError) => {
+    switch (err.code) {
+      case 'auth/invalid-credential':
+      case 'auth/wrong-password':
+      case 'auth/user-not-found':
+        return 'Invalid email or password. Please check your credentials and try again.';
+      case 'auth/invalid-email':
+        return 'Please enter a valid email address.';
+      case 'auth/user-disabled':
+        return 'This account has been disabled. Please contact support.';
+      case 'auth/too-many-requests':
+        return 'Too many failed attempts. Please wait a few minutes and try again.';
+      case 'auth/network-request-failed':
+        return 'Network error. Please check your internet connection.';
+      default:
+        return err.message || 'Login failed. Please try again.';
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    // Check offline status - use state if mounted, otherwise check navigator
-    const checkOffline = mounted ? isOffline : (typeof navigator !== 'undefined' && !navigator.onLine);
-
     try {
-      // Always check for offline first - even if navigator.onLine says true
-      // Network requests might still fail
-      
-      // If offline, always try cached credentials first
-      if (checkOffline) {
-        const { loginOffline } = await import('../../../lib/offlineAuth');
-        const offlineUser = loginOffline(email);
-        
-        if (offlineUser) {
-          // Use cached credentials for offline login
-          console.log('[Login] Offline login with cached credentials');
-          // Store user in auth context manually
-          try {
-            const { storeOfflineUser } = await import('../../../lib/offlineAuth');
-            storeOfflineUser(offlineUser);
-          } catch (e) {
-            console.warn('Error storing offline user:', e);
-          }
-          router.push('/dashboard');
-          setTimeout(() => window.location.reload(), 500);
-          return;
-        } else {
-          // No cached credentials found
-          setError('No cached credentials found. Please login while online first to enable offline access.');
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Online login - wrap in try-catch to handle network errors
-      console.log('Attempting online login...');
-      
-      // First, test connection to Supabase to catch CORS issues early (optional check)
-      // Use dynamic import to prevent blocking page load if there are import issues
-      try {
-        const { testSupabaseReachability } = await import('../../../lib/supabase');
-        if (testSupabaseReachability && typeof testSupabaseReachability === 'function') {
-          const reachabilityTest = await testSupabaseReachability();
-          if (reachabilityTest && !reachabilityTest.success && reachabilityTest.error?.isCorsError) {
-            const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-            console.error('[Login] ❌ CORS Error detected:', reachabilityTest.error);
-            setError(`CORS Error: Supabase is blocking requests from ${currentOrigin}. Please: 1) Go to Supabase Dashboard → Settings → API → Add "${currentOrigin}" to allowed origins, 2) Check if project is paused, 3) Restart dev server after updating CORS settings.`);
-            setLoading(false);
-            return;
-          }
-        }
-      } catch (reachabilityError: any) {
-        // If reachability test fails, continue with login attempt anyway
-        console.warn('[Login] Reachability test failed, continuing with login:', reachabilityError);
-      }
-      
-      let data, error;
-      try {
-        const loginPromise = supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        
-        // Add timeout to detect network issues
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Network timeout - appears offline')), 10000)
-        );
-        
-        const result = await Promise.race([loginPromise, timeoutPromise]) as { data: any, error: any };
-        data = result.data;
-        error = result.error;
-      } catch (networkError: any) {
-        // Network error - log full details for debugging
-        console.error('[Login] Network error caught:', {
-          message: networkError?.message,
-          name: networkError?.name,
-          stack: networkError?.stack,
-          cause: networkError?.cause,
-          error: networkError
-        });
-        
-        // Check if it's a CORS or fetch error
-        const isFetchError = networkError?.message?.includes('fetch') || 
-                            networkError?.message?.includes('Failed to fetch') ||
-                            networkError?.message?.includes('SupabaseConnectionError') ||
-                            networkError?.name === 'TypeError' ||
-                            networkError?.name === 'SupabaseConnectionError';
-        
-        if (isFetchError) {
-          const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-          console.error('[Login] ❌ Fetch failed - Common causes:');
-          console.error(`  1. CORS issue: Add ${currentOrigin} to Supabase allowed origins`);
-          console.error('  2. Supabase project paused: Check Supabase Dashboard');
-          console.error('  3. Network/firewall blocking connection');
-          console.error('  4. Incorrect Supabase URL in .env file');
-          
-          setError(`Failed to connect to Supabase. This is usually a CORS issue. Please: 1) Go to Supabase Dashboard → Settings → API → Add "${currentOrigin}" to allowed origins, 2) Check if project is paused, 3) Verify .env file has correct Supabase URL, 4) Restart dev server after updating CORS.`);
-          setLoading(false);
-          return;
-        }
-        
-        // Try offline login for other network errors
-        const { loginOffline, storeOfflineUser } = await import('../../../lib/offlineAuth');
-        const offlineUser = loginOffline(email);
-        if (offlineUser) {
-          console.log('[Login] Network failed, using cached credentials');
-          try {
-            storeOfflineUser(offlineUser);
-          } catch (e) {
-            console.warn('Error storing offline user:', e);
-          }
-          router.push('/dashboard');
-          setTimeout(() => window.location.reload(), 500);
-          return;
-        }
-        
-        setError('Unable to connect. Please check your internet connection or login with cached credentials.');
-        setLoading(false);
-        return;
-      }
-
-      if (error) {
-        console.error('[Login] Supabase auth error:', {
-          message: error.message,
-          status: error.status,
-          code: error.code,
-          name: error.name
-        });
-        
-        // Check if it's a CORS/network error (status 0 or AuthRetryableFetchError)
-        const isNetworkError = error.status === 0 || 
-                               error.name === 'AuthRetryableFetchError' ||
-                               error.name === 'SupabaseConnectionError' ||
-                               error.message?.includes('Failed to fetch') ||
-                               error.message?.includes('fetch') ||
-                               error.message?.includes('network') ||
-                               error.message?.includes('CORS');
-        
-        if (isNetworkError) {
-          const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-          console.log('[Login] Network/CORS error detected, trying offline login first...');
-          
-          // Try offline login first
-          try {
-            const { loginOffline, storeOfflineUser } = await import('../../../lib/offlineAuth');
-            const offlineUser = loginOffline(email);
-            if (offlineUser) {
-              try {
-                storeOfflineUser(offlineUser);
-              } catch (e) {
-                console.warn('Error storing offline user:', e);
-              }
-              router.push('/dashboard');
-              setTimeout(() => window.location.reload(), 500);
-              return;
-            }
-          } catch (offlineError) {
-            console.warn('[Login] Offline login failed:', offlineError);
-          }
-          
-          // If offline login fails, show CORS error message
-          const corsErrorMessage = `Connection Error: Cannot connect to Supabase\n\n` +
-            `This is a CORS (Cross-Origin) issue. Quick fix:\n\n` +
-            `1. Open: https://supabase.com/dashboard\n` +
-            `2. Select your project → Settings → API\n` +
-            `3. Find "CORS Configuration" or "Allowed Origins"\n` +
-            `4. Add this URL: ${currentOrigin}\n` +
-            `5. Click Save, then restart dev server\n\n` +
-            `Other checks:\n` +
-            `• Is Supabase project paused? (Resume it)\n` +
-            `• Check internet connection\n` +
-            `• Verify Supabase URL in .env file`;
-          
-          setError(corsErrorMessage);
-          setLoading(false);
-          return;
-        }
-        
-        // Provide user-friendly error messages for other errors
-        let userMessage = error.message;
-        if (error.message?.includes('Invalid login credentials') || 
-            error.message?.includes('Invalid credentials')) {
-          userMessage = 'Invalid email or password. Please check your credentials and try again.';
-        } else if (error.message?.includes('Email not confirmed')) {
-          userMessage = 'Please verify your email address before logging in. Check your inbox for the verification link.';
-        } else if (error.message?.includes('Too many requests')) {
-          userMessage = 'Too many login attempts. Please wait a few minutes and try again.';
-        } else if (error.message) {
-          userMessage = error.message;
-        } else {
-          userMessage = 'Login failed. Please try again.';
-        }
-        
-        setError(userMessage);
-        setLoading(false);
-        return;
-      }
-
-      console.log('Login Success:', data);
-      
-      // Store credentials for offline access (password will be hashed internally)
-      if (data.user && data.session) {
-        const { storeOfflineAuth } = await import('../../../lib/offlineAuth');
-        await storeOfflineAuth(email, password);
-        
-        // Store user data for offline access
-        const { storeOfflineUser } = await import('../../../lib/offlineAuth');
-        storeOfflineUser({
-          id: data.user.id,
-          email: data.user.email || email,
-          name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'User',
-          level: 1,
-          total_xp: 0,
-          streak: 0,
-          learning_language: 'ar',
-          native_language: 'en',
-          cachedAt: Date.now()
-        });
-      }
-      
-      // Redirect to dashboard after successful login
-      console.log('Redirecting to dashboard...');
+      await signInWithEmailAndPassword(auth, email, password);
       router.push('/dashboard');
-      
     } catch (err) {
-      console.error('Unexpected error:', err);
-      setError('An unexpected error occurred');
+      const authErr = err as AuthError;
+      setError(getFriendlyError(authErr));
       setLoading(false);
     }
   };
@@ -278,27 +66,18 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: getRedirectUrl('/auth/callback'),
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          }
-        }
-      });
-
-      if (error) {
-        console.error('Google Login Error:', error.message);
-        setError(error.message);
-        setLoading(false);
-      }
+      await signInWithPopup(auth, googleProvider);
+      router.push('/dashboard');
     } catch (err) {
-      setError('An unexpected error occurred');
+      const authErr = err as AuthError;
+      if (authErr.code !== 'auth/popup-closed-by-user') {
+        setError(getFriendlyError(authErr));
+      }
       setLoading(false);
     }
   };
+
+  if (!mounted) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
@@ -329,6 +108,7 @@ export default function LoginPage() {
                   className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="Enter your email"
                   required
+                  autoComplete="email"
                 />
               </div>
             </div>
@@ -347,6 +127,7 @@ export default function LoginPage() {
                   className="w-full pl-12 pr-12 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="Enter your password"
                   required
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
@@ -358,27 +139,10 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Offline Notice - Only show after mount to prevent hydration mismatch */}
-            {mounted && isOffline && (
-              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 text-yellow-400 text-sm">
-                <div className="flex items-center space-x-2">
-                  <span>📡</span>
-                  <span>You're offline. Login will use cached credentials if available.</span>
-                </div>
-              </div>
-            )}
-
             {/* Error Message */}
             {error && (
-              <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-400 text-sm whitespace-pre-line">
-                <div className="font-semibold mb-2">⚠️ {error.split('\n')[0]}</div>
-                {error.includes('\n') && (
-                  <div className="text-xs text-red-300/80 mt-2 space-y-1">
-                    {error.split('\n').slice(1).map((line, idx) => (
-                      <div key={idx}>{line}</div>
-                    ))}
-                  </div>
-                )}
+              <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-400 text-sm">
+                ⚠️ {error}
               </div>
             )}
 
@@ -423,8 +187,8 @@ export default function LoginPage() {
 
           {/* Forgot Password */}
           <div className="text-center mt-6">
-            <Link 
-              href="/auth/forgot-password" 
+            <Link
+              href="/auth/forgot-password"
               className="text-purple-400 hover:text-purple-300 transition-colors text-sm"
             >
               Forgot your password?
@@ -435,9 +199,9 @@ export default function LoginPage() {
         {/* Sign Up Link */}
         <div className="text-center mt-6">
           <p className="text-white/70">
-            Don't have an account?{' '}
-            <Link 
-              href="/auth/signup" 
+            Don&apos;t have an account?{' '}
+            <Link
+              href="/auth/signup"
               className="text-purple-400 hover:text-purple-300 transition-colors font-semibold"
             >
               Sign up here
@@ -448,4 +212,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

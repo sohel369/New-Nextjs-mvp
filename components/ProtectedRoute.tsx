@@ -23,38 +23,9 @@ export default function ProtectedRoute({
   const [hasCheckedSession, setHasCheckedSession] = useState(false);
 
   useEffect(() => {
-    // Check for session in localStorage if user just signed up
-    const checkSessionStorage = async () => {
-      if (!user && !hasCheckedSession && typeof window !== 'undefined') {
-        const justSignedUp = sessionStorage.getItem('just_signed_up') === 'true';
-        if (justSignedUp) {
-          // Check if there's a session in localStorage - retry a few times
-          for (let i = 0; i < 5; i++) {
-            try {
-              const { supabase } = await import('../lib/supabase');
-              const { data: { session } } = await supabase.auth.getSession();
-              if (session) {
-                console.log('[ProtectedRoute] Found session for just-signed-up user, waiting for AuthContext...');
-                // Session exists, AuthContext should load it soon - wait a bit before marking as checked
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                setHasCheckedSession(true);
-                return;
-              }
-            } catch (e) {
-              console.warn('[ProtectedRoute] Error checking session:', e);
-            }
-            // Wait before retrying
-            await new Promise(resolve => setTimeout(resolve, 300));
-          }
-          // No session found after retries, mark as checked anyway
-          console.log('[ProtectedRoute] No session found after retries');
-        }
-        setHasCheckedSession(true);
-      }
-    };
-
-    checkSessionStorage();
-  }, [user, hasCheckedSession]);
+    // Session check for Firebase is handled by AuthContext (onAuthStateChanged)
+    setHasCheckedSession(true);
+  }, []);
 
   useEffect(() => {
     // Check for offline user if no user and offline
@@ -122,21 +93,10 @@ export default function ProtectedRoute({
         const stillPreventRedirect = typeof window !== 'undefined' && sessionStorage.getItem('prevent_redirect') === 'true';
         const stillJustSignedUp = typeof window !== 'undefined' && sessionStorage.getItem('just_signed_up') === 'true';
         
-        // If user just signed up, check for session one more time
+        // If user just signed up, wait a bit for AuthContext to catch up
         if (stillJustSignedUp) {
-          try {
-            const { supabase } = await import('../lib/supabase');
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-              console.log('[ProtectedRoute] Session found for just-signed-up user, waiting a bit more...');
-              // Session exists, wait a bit more for AuthContext to catch up
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              // Don't redirect yet, let the component re-render with updated user state
-              return;
-            }
-          } catch (e) {
-            console.warn('[ProtectedRoute] Error checking session:', e);
-          }
+          console.log('[ProtectedRoute] User recently signed up, waiting for AuthContext...');
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
         
         // Clear the just_signed_up flag only if we're about to redirect

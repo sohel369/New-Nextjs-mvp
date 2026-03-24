@@ -2,7 +2,20 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  doc, 
+  updateDoc,
+  deleteDoc,
+  orderBy,
+  writeBatch,
+  addDoc,
+  getDocs
+} from 'firebase/firestore';
 
 export interface Notification {
   id: string;
@@ -51,15 +64,18 @@ export function EnhancedNotificationProvider({
   const updateBrowserTitle = (count: number) => {
     const originalTitle = appName;
     
-    if (count > 0) {
-      document.title = `(${count}) ${originalTitle}`;
-    } else {
-      document.title = originalTitle;
+    if (typeof document !== 'undefined') {
+      if (count > 0) {
+        document.title = `(${count}) ${originalTitle}`;
+      } else {
+        document.title = originalTitle;
+      }
     }
   };
 
   // Update favicon with badge
   const updateFavicon = (count: number) => {
+    if (typeof document === 'undefined') return;
     try {
       let favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
       
@@ -111,7 +127,7 @@ export function EnhancedNotificationProvider({
 
   // Request notification permission for browser notifications
   const requestNotificationPermission = async (): Promise<boolean> => {
-    if (!('Notification' in window)) {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
       console.log('This browser does not support notifications');
       return false;
     }
@@ -130,7 +146,7 @@ export function EnhancedNotificationProvider({
 
   // Show browser notification
   const showBrowserNotification = (title: string, options?: NotificationOptions) => {
-    if (Notification.permission === 'granted') {
+    if (typeof window !== 'undefined' && Notification.permission === 'granted') {
       new Notification(title, {
         icon: '/favicon.ico',
         badge: '/favicon.ico',
@@ -139,117 +155,50 @@ export function EnhancedNotificationProvider({
     }
   };
 
-  // Load notifications from Supabase
+  // Load notifications from Firebase Firestore
   useEffect(() => {
-    if (!user) return;
+    if (!user || !db || (db as any)._type !== 'Firestore' && typeof (db as any).collection !== 'function') {
+      setNotifications([]);
+      return;
+    }
 
-    const fetchNotifications = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('notifications')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+    try {
+      const q = query(
+        collection(db, 'notifications'),
+        where('user_id', '==', user.id),
+        orderBy('created_at', 'desc')
+      );
 
-        if (error) {
-          // Check if it's a table doesn't exist error
-          if (error.code === 'PGRST116' || error.message?.includes('relation "notifications" does not exist')) {
-            console.warn('Notifications table does not exist yet. Please run the database migration.');
-            setNotifications([]);
-            return;
-          }
-          
-          // Only log other errors, don't throw
-          console.warn('Error fetching notifications:', error.message || error);
-          setNotifications([]);
-          return;
-        }
-
-        const formattedNotifications = (data || []).map(notification => ({
-          id: notification.id,
-          type: notification.type as Notification['type'],
-          title: notification.title,
-          message: notification.message,
-          timestamp: new Date(notification.created_at),
-          read: notification.read,
-          priority: 'medium' as const,
-        }));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const formattedNotifications = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            type: (data.type || 'info') as Notification['type'],
+            title: data.title || '',
+            message: data.message || '',
+            timestamp: data.created_at ? new Date(data.created_at) : new Date(),
+            read: !!data.read,
+            priority: (data.priority || 'medium') as Notification['priority'],
+            actionUrl: data.actionUrl,
+            icon: data.icon,
+            color: data.color,
+          };
+        });
 
         setNotifications(formattedNotifications);
-      } catch (error) {
-        console.warn('Error fetching notifications:', error);
+      }, (error) => {
+        console.warn('Error fetching notifications from Firebase:', error);
         setNotifications([]);
-      }
-    };
-
-    fetchNotifications();
-
-    // Set up real-time subscription
-    const channel = supabase
-      .channel('notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          try {
-            if (payload.eventType === 'INSERT') {
-              const newNotification = payload.new;
-              const formattedNotification = {
-                id: newNotification.id,
-                type: newNotification.type as Notification['type'],
-                title: newNotification.title,
-                message: newNotification.message,
-                timestamp: new Date(newNotification.created_at),
-                read: newNotification.read,
-                priority: 'medium' as const,
-              };
-              
-              setNotifications(prev => [formattedNotification, ...prev]);
-              
-              // Show browser notification for new notifications
-              if (!newNotification.read) {
-                showBrowserNotification(newNotification.title, {
-                  body: newNotification.message,
-                  icon: '/favicon.ico',
-                });
-              }
-            } else if (payload.eventType === 'UPDATE') {
-              const updatedNotification = payload.new;
-              setNotifications(prev => 
-                prev.map(n => 
-                  n.id === updatedNotification.id 
-                    ? { ...n, read: updatedNotification.read }
-                    : n
-                )
-              );
-            } else if (payload.eventType === 'DELETE') {
-              const deletedNotification = payload.old;
-              setNotifications(prev => 
-                prev.filter(n => n.id !== deletedNotification.id)
-              );
-            }
-          } catch (error) {
-            console.warn('Error processing real-time notification update:', error);
-          }
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Successfully subscribed to notifications');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.warn('Failed to subscribe to notifications - table may not exist yet');
-        }
       });
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+      return () => unsubscribe();
+    } catch (error) {
+      console.warn('Error setting up notification subscription:', error);
+      setNotifications([]);
+    }
   }, [user]);
+
 
   // Update browser title and favicon when unread count changes
   useEffect(() => {
@@ -262,156 +211,99 @@ export function EnhancedNotificationProvider({
     requestNotificationPermission();
   }, []);
 
-  const addNotification = (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
-    const newNotification: Notification = {
-      ...notification,
-      id: Date.now().toString(),
-      timestamp: new Date(),
-      read: false,
-    };
-    setNotifications(prev => [newNotification, ...prev]);
+  const addNotification = async (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
+    if (!user || !db || (db as any)._type !== 'Firestore' && typeof (db as any).collection !== 'function') {
+      // Offline-only fallback if not logged in or Firebase not available
+      const newNotification: Notification = {
+        ...notification,
+        id: Date.now().toString(),
+        timestamp: new Date(),
+        read: false,
+      };
+      setNotifications(prev => [newNotification, ...prev]);
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, 'notifications'), {
+        ...notification,
+        user_id: user.id,
+        read: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error adding notification to Firebase:', error);
+    }
   };
 
   const markAsRead = async (id: string) => {
-    if (!user) return;
+    if (!user || !db || (db as any)._type !== 'Firestore' && typeof (db as any).collection !== 'function') return;
 
     try {
-      // Update in Supabase
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      if (error) {
-        // Check if it's a table doesn't exist error
-        if (error.code === 'PGRST116' || error.message?.includes('relation "notifications" does not exist')) {
-          console.warn('Notifications table does not exist yet. Please run the database migration.');
-          // Still update local state for better UX
-          setNotifications(prev => 
-            prev.map(n => n.id === id ? { ...n, read: true } : n)
-          );
-          return;
-        }
-        
-        console.warn('Error marking notification as read:', error.message || error);
-        return;
-      }
-
-      // Update local state
-      setNotifications(prev => 
-        prev.map(n => n.id === id ? { ...n, read: true } : n)
-      );
+      const docRef = doc(db, 'notifications', id);
+      await updateDoc(docRef, { 
+        read: true, 
+        updated_at: new Date().toISOString() 
+      });
     } catch (error) {
-      console.warn('Error marking notification as read:', error);
-      // Still update local state for better UX
-      setNotifications(prev => 
-        prev.map(n => n.id === id ? { ...n, read: true } : n)
-      );
+      console.error('Error marking notification as read:', error);
     }
   };
 
   const markAllAsRead = async () => {
-    if (!user || unreadCount === 0) return;
+    if (!user || unreadCount === 0 || !db || (db as any)._type !== 'Firestore' && typeof (db as any).collection !== 'function') return;
 
     try {
-      // Update in Supabase
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true, updated_at: new Date().toISOString() })
-        .eq('user_id', user.id)
-        .eq('read', false);
-
-      if (error) {
-        // Check if it's a table doesn't exist error
-        if (error.code === 'PGRST116' || error.message?.includes('relation "notifications" does not exist')) {
-          console.warn('Notifications table does not exist yet. Please run the database migration.');
-          // Still update local state for better UX
-          setNotifications(prev => 
-            prev.map(n => ({ ...n, read: true }))
-          );
-          return;
-        }
-        
-        console.warn('Error marking all notifications as read:', error.message || error);
-        return;
-      }
-
-      // Update local state
-      setNotifications(prev => 
-        prev.map(n => ({ ...n, read: true }))
+      const batch = writeBatch(db);
+      const q = query(
+        collection(db, 'notifications'),
+        where('user_id', '==', user.id),
+        where('read', '==', false)
       );
+      const snapshot = await getDocs(q);
+      
+      snapshot.forEach(d => {
+        batch.update(d.ref, { 
+          read: true, 
+          updated_at: new Date().toISOString() 
+        });
+      });
+      
+      await batch.commit();
     } catch (error) {
-      console.warn('Error marking all notifications as read:', error);
-      // Still update local state for better UX
-      setNotifications(prev => 
-        prev.map(n => ({ ...n, read: true }))
-      );
+      console.error('Error marking all notifications as read:', error);
     }
   };
 
   const removeNotification = async (id: string) => {
-    if (!user) return;
+    if (!user || !db || (db as any)._type !== 'Firestore' && typeof (db as any).collection !== 'function') return;
 
     try {
-      // Delete from Supabase
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      if (error) {
-        // Check if it's a table doesn't exist error
-        if (error.code === 'PGRST116' || error.message?.includes('relation "notifications" does not exist')) {
-          console.warn('Notifications table does not exist yet. Please run the database migration.');
-          // Still update local state for better UX
-          setNotifications(prev => prev.filter(n => n.id !== id));
-          return;
-        }
-        
-        console.warn('Error deleting notification:', error.message || error);
-        return;
-      }
-
-      // Update local state
-      setNotifications(prev => prev.filter(n => n.id !== id));
+      await deleteDoc(doc(db, 'notifications', id));
     } catch (error) {
-      console.warn('Error deleting notification:', error);
-      // Still update local state for better UX
-      setNotifications(prev => prev.filter(n => n.id !== id));
+      console.error('Error deleting notification:', error);
     }
   };
 
   const clearAllNotifications = async () => {
-    if (!user) return;
+    if (!user || !db || (db as any)._type !== 'Firestore' && typeof (db as any).collection !== 'function') return;
 
     try {
-      // Delete all from Supabase
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (error) {
-        // Check if it's a table doesn't exist error
-        if (error.code === 'PGRST116' || error.message?.includes('relation "notifications" does not exist')) {
-          console.warn('Notifications table does not exist yet. Please run the database migration.');
-          // Still update local state for better UX
-          setNotifications([]);
-          return;
-        }
-        
-        console.warn('Error clearing all notifications:', error.message || error);
-        return;
-      }
-
-      // Update local state
-      setNotifications([]);
+      const batch = writeBatch(db);
+      const q = query(
+        collection(db, 'notifications'),
+        where('user_id', '==', user.id)
+      );
+      const snapshot = await getDocs(q);
+      
+      snapshot.forEach(d => {
+        batch.delete(d.ref);
+      });
+      
+      await batch.commit();
     } catch (error) {
-      console.warn('Error clearing all notifications:', error);
-      // Still update local state for better UX
-      setNotifications([]);
+      console.error('Error clearing all notifications:', error);
     }
   };
 

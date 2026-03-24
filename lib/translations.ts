@@ -9,6 +9,10 @@ export const translations = {
     profile: 'Profile',
     settings: 'Settings',
     aiCoach: 'AI Coach',
+    stats: 'Stats',
+    history: 'History',
+    logout: 'Logout',
+    profileInformation: 'Profile Information',
     
     // Homepage
     welcome: 'Welcome back',
@@ -101,6 +105,10 @@ export const translations = {
     profile: 'الملف الشخصي',
     settings: 'الإعدادات',
     aiCoach: 'المدرب الذكي',
+    stats: 'الإحصائيات',
+    history: 'السجل',
+    logout: 'تسجيل الخروج',
+    profileInformation: 'معلومات الملف الشخصي',
     
     // Homepage
     welcome: 'مرحباً بعودتك',
@@ -193,6 +201,10 @@ export const translations = {
     profile: 'Profiel',
     settings: 'Instellingen',
     aiCoach: 'AI Coach',
+    stats: 'Statistieken',
+    history: 'Geschiedenis',
+    logout: 'Uitloggen',
+    profileInformation: 'Profielinformatie',
     
     // Homepage
     welcome: 'Welkom terug',
@@ -258,6 +270,10 @@ export const translations = {
     profile: 'Profil',
     settings: 'Pengaturan',
     aiCoach: 'Pelatih AI',
+    stats: 'Statistik',
+    history: 'Riwayat',
+    logout: 'Keluar',
+    profileInformation: 'Informasi Profil',
     
     // Homepage
     welcome: 'Selamat datang kembali',
@@ -323,6 +339,10 @@ export const translations = {
     profile: 'Profil',
     settings: 'Tetapan',
     aiCoach: 'Jurulatih AI',
+    stats: 'Statistik',
+    history: 'Rekod',
+    logout: 'Log Keluar',
+    profileInformation: 'Maklumat Profil',
     
     // Homepage
     welcome: 'Selamat kembali',
@@ -388,6 +408,10 @@ export const translations = {
     profile: 'โปรไฟล์',
     settings: 'การตั้งค่า',
     aiCoach: 'โค้ช AI',
+    stats: 'สถิติ',
+    history: 'ประวัติ',
+    logout: 'ออกจากระบบ',
+    profileInformation: 'ข้อมูลโปรไฟล์',
     
     // Homepage
     welcome: 'ยินดีต้อนรับกลับ',
@@ -453,6 +477,10 @@ export const translations = {
     profile: 'ប្រវត្តិរូប',
     settings: 'ការកំណត់',
     aiCoach: 'គ្រូបង្រៀន AI',
+    stats: 'ស្ថិតិ',
+    history: 'ប្រវត្តិ',
+    logout: 'ចាកចេញ',
+    profileInformation: 'ព័ត៌មានប្រវត្តិរូប',
     
     // Homepage
     welcome: 'សូមស្វាគមន៍មកវិញ',

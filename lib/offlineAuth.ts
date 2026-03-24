@@ -200,7 +200,7 @@ function simpleHash(str: string): string {
 }
 
 // Store password hash with secure hashing
-// Note: This is for offline authentication only - passwords are still stored securely in Supabase
+// Note: This is for offline authentication only - passwords are still stored securely in Firebase
 export async function hashPassword(password: string): Promise<string> {
   const salt = 'lingua-ai-offline-salt-v2'; // Versioned salt for offline use
   return await secureHash(password + salt);

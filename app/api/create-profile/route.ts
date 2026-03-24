@@ -1,23 +1,29 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { initializeApp, getApps, getApp, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://uaijcvhvyurbnfmkqnqt.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhaWpjdmh2eXVyYm5mbWtxbnF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAyMTU3NzksImV4cCI6MjA3NTc5MTc3OX0.FbBITvB9ITLt7L3e5BAiP4VYa0Qw7YCOx-SHHl1k8zY';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhaWpjdmh2eXVyYm5mbWtxbnF0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDIxNTc3OSwiZXhwIjoyMDc1NzkxNzc5fQ.ZAMRcMEYtiF7lJjnrVzJvCqshe0QEDIopJ-P9fGDs-8';
+// Initialize Firebase Admin (server-side only)
+function getAdminDb() {
+  if (!getApps().length) {
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    detectSessionInUrl: true
+    if (!privateKey || privateKey.includes('YOUR_PRIVATE_KEY_HERE')) {
+      console.warn('[FirebaseAdmin] Missing or placeholder private key. Admin SDK operations will fail.');
+      throw new Error('Firebase Admin SDK not configured. Check your .env.local file.');
+    }
+
+    initializeApp({
+      credential: cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
+    });
   }
-});
-// Admin client with proper configuration to bypass RLS
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+  return getFirestore(getApp());
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,64 +33,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Use admin client (service role) to bypass RLS
-    // This ensures profile creation always works regardless of RLS policies
     console.log('[create-profile] Creating profile for user:', userId);
-    
-    // Try to create profile in profiles table first (using admin client)
-    const { data: profilesData, error: profilesError } = await supabaseAdmin
-      .from('profiles')
-      .insert([
-        {
-          id: userId,
-          name: name,
-          email: email,
-          learning_languages: learningLanguages || ['ar'],
-          base_language: nativeLanguage || 'en',
-          level: 1,
-          total_xp: 0,
-          streak: 0
-        }
-      ])
-      .select()
-      .single();
 
-    if (profilesError) {
-      console.log('[create-profile] Profiles table failed, trying users table:', profilesError.message);
-      
-      // Fallback: create profile in users table (using admin client)
-      const { data: usersData, error: usersError } = await supabaseAdmin
-        .from('users')
-        .insert([
-          {
-            id: userId,
-            name: name,
-            email: email,
-            learning_languages: learningLanguages || ['ar'],
-            learning_language: learningLanguages?.[0] || 'ar',
-            native_language: nativeLanguage || 'en',
-            level: 1,
-            total_xp: 0,
-            streak: 0
-          }
-        ])
-        .select()
-        .single();
+    const db = getAdminDb();
+    const profileData = {
+      id: userId,
+      name,
+      email,
+      learning_languages: learningLanguages || ['ar'],
+      base_language: nativeLanguage || 'en',
+      learning_language: learningLanguages?.[0] || 'ar',
+      native_language: nativeLanguage || 'en',
+      level: 1,
+      total_xp: 0,
+      streak: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
 
-      if (usersError) {
-        console.error('[create-profile] Both attempts failed:', usersError);
-        return NextResponse.json({ 
-          error: usersError.message || 'Failed to create profile',
-          details: usersError
-        }, { status: 500 });
-      }
+    await db.collection('profiles').doc(userId).set(profileData, { merge: true });
 
-      console.log('[create-profile] ✅ Profile created in users table');
-      return NextResponse.json({ success: true, data: usersData, table: 'users' });
-    }
-
-    console.log('[create-profile] ✅ Profile created in profiles table');
-    return NextResponse.json({ success: true, data: profilesData, table: 'profiles' });
+    console.log('[create-profile] ✅ Profile created in Firestore');
+    return NextResponse.json({ success: true, data: profileData });
 
   } catch (error: any) {
     console.error('[create-profile] Unexpected error:', error);

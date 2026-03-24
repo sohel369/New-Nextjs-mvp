@@ -8,7 +8,8 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import BottomNavigation from '../../components/BottomNavigation';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import QuizLoadingSpinner from '../../components/QuizLoadingSpinner';
-import { supabase } from '../../lib/supabase';
+import { db } from '../../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { saveQuizHistory } from '../../lib/quizHistory';
 
 const QuizScreen = lazy(() => import('../../components/QuizScreen'));
@@ -59,52 +60,26 @@ export default function QuizPage() {
       return;
     }
 
-    // 🧩 Wrap async Supabase call in safe async function
+    // 🧩 Wrap async Firestore call in safe async function
     try {
       if (!mounted) return;
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('learning_languages')
-        .eq('id', user.id)
-        .maybeSingle();
+      const docRef = doc(db, 'profiles', user.id);
+      const docSnap = await getDoc(docRef);
 
       // 🛡 Check mounted again after async operation
       if (!mounted) return;
 
-      if (error) {
-        // ✅ Only log if error has meaningful content (not empty object)
-        // Check if error is an empty object - if so, skip logging entirely
-        const isErrorObject = typeof error === 'object' && error !== null;
-        const errorKeys = isErrorObject ? Object.keys(error) : [];
-        const isEmptyObject = isErrorObject && errorKeys.length === 0;
-        
-        // Only proceed with logging if it's not an empty object
-        if (!isEmptyObject) {
-          const hasMessage = error.message && typeof error.message === 'string' && error.message.trim().length > 0;
-          const hasCode = error.code && (typeof error.code === 'string' || typeof error.code === 'number');
-          const hasDetails = error.details && typeof error.details === 'string' && error.details.trim().length > 0;
-          const hasHint = error.hint && typeof error.hint === 'string' && error.hint.trim().length > 0;
-          
-          // Only log if at least one meaningful property exists
-          if (hasMessage || hasCode || hasDetails || hasHint) {
-            console.error('Error loading user learning languages:', {
-              message: error.message,
-              code: error.code,
-              details: error.details,
-              hint: error.hint
-            });
-          }
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data?.learning_languages && Array.isArray(data.learning_languages) && data.learning_languages.length > 0) {
+          setSelectedLanguages(data.learning_languages);
+        } else {
+          const fallbackLanguages = currentLanguage?.code ? [currentLanguage.code] : [];
+          setSelectedLanguages(fallbackLanguages);
         }
-        // Always set fallback languages even if error is empty (no logging)
-        if (!mounted) return;
-        setSelectedLanguages([currentLanguage.code]);
-      } else if (data?.learning_languages && Array.isArray(data.learning_languages) && data.learning_languages.length > 0) {
-        // ✅ Use the fetched languages if valid array with items
-        setSelectedLanguages(data.learning_languages);
       } else {
-        // ✅ Fallback to empty array or current language code if no languages found
         const fallbackLanguages = currentLanguage?.code ? [currentLanguage.code] : [];
         setSelectedLanguages(fallbackLanguages);
       }
@@ -117,14 +92,16 @@ export default function QuizPage() {
       // Only log if we have a meaningful error message or stack trace
       // Explicitly avoid logging empty objects
       if (errorMessage && errorMessage.trim().length > 0) {
-        console.error('Error loading user learning languages:', {
-          message: errorMessage,
-          stack: errorStack
-        });
-      } else if (errorStack) {
-        console.error('Error loading user learning languages:', {
-          stack: errorStack
-        });
+        if (errorMessage.includes('not-found') || errorMessage.includes('database')) {
+          console.error('CRITICAL: Firestore Database Not Found. Please ensure you have created the (default) database in the Firebase Console for project ' + (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'car-rental-dubai-86748'));
+        } else if (errorMessage.includes('offline')) {
+          console.warn('Firebase is offline. This might be due to a connection issue or an initial configuration failure.');
+        } else {
+          console.error('Error loading user learning languages:', {
+            message: errorMessage,
+            stack: errorStack
+          });
+        }
       }
       // If error is just an empty object or has no meaningful content, skip logging
       
@@ -192,23 +169,16 @@ export default function QuizPage() {
     formattedTime: formatTime(quizTime)
   }), [quizScore, totalQuestions, formatTime, quizTime]);
 
-  // 🛡 Prevent SSR/client mismatch by rendering a placeholder before mount
+  // 🛡 Prevent SSR/client mismatch by rendering a complete layout match for hydration
+  // We use the same background and structure to keep the transition seamless
   if (!mounted) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white">
-        <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
-        <p className="mt-4 text-sm text-white/70">Loading...</p>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <ProtectedRoute>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-          <QuizLoadingSpinner message="Loading quizzes..." size="lg" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col pb-20">
+        <div className="p-4 sm:p-6 flex-1 flex items-center justify-center">
+          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
         </div>
-      </ProtectedRoute>
+        <BottomNavigation />
+      </div>
     );
   }
 
@@ -216,7 +186,7 @@ export default function QuizPage() {
     <ProtectedRoute>
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col pb-20" dir={isRTL ? 'rtl' : 'ltr'}>
         <div className="p-4 sm:p-6 flex-1 overflow-y-auto">
-          {/* Header */}
+          {/* Header - Always visible for faster perceived performance */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
             <Link
               href="/"
@@ -234,7 +204,13 @@ export default function QuizPage() {
             </div>
           </div>
 
-          {/* Quiz Challenge Header */}
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center min-h-[400px]">
+              <QuizLoadingSpinner message="Preloading Quiz Content..." size="lg" />
+            </div>
+          ) : (
+            <>
+              {/* Quiz Challenge Header */}
           <div className="mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Quiz Challenge</h1>
 
@@ -319,31 +295,30 @@ export default function QuizPage() {
             </div>
           </div>
 
-          {/* Quiz Content */}
-          <div className="flex-1">
-            <Suspense fallback={<QuizLoadingSpinner message="Loading quiz..." size="md" />}>
-              <QuizScreen
-                key={`quiz-${globalLanguage}-${resetCounter}`}
-                selectedLanguage={globalLanguage}
-                onFinish={(score, total) => {
-                  setQuizScore(score);
-                  setTotalQuestions(total);
-                  handleQuizFinish(score, total, quizTime);
-                }}
-                onSpeakText={handleSpeakText}
-                onQuestionChange={(question, total) => {
-                  setCurrentQuestion(question);
-                  setTotalQuestions(total);
-                }}
-                onQuizStart={() => setQuizStarted(true)}
-                onResetQuiz={resetQuiz}
-                quizType={quizType}
-              />
-            </Suspense>
-          </div>
+              <div className="flex-1">
+                <Suspense fallback={<QuizLoadingSpinner message="Loading quiz..." size="md" />}>
+                  <QuizScreen
+                    key={`quiz-${globalLanguage}-${resetCounter}`}
+                    selectedLanguage={globalLanguage}
+                    onFinish={(score, total) => {
+                      setQuizScore(score);
+                      setTotalQuestions(total);
+                      handleQuizFinish(score, total, quizTime);
+                    }}
+                    onSpeakText={handleSpeakText}
+                    onQuestionChange={(question, total) => {
+                      setCurrentQuestion(question);
+                      setTotalQuestions(total);
+                    }}
+                    onQuizStart={() => setQuizStarted(true)}
+                    onResetQuiz={resetQuiz}
+                    quizType={quizType}
+                  />
+                </Suspense>
+              </div>
+            </>
+          )}
         </div>
-
-        {/* Bottom Navigation - Fixed */}
         <BottomNavigation />
       </div>
     </ProtectedRoute>

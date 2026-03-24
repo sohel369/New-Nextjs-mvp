@@ -71,7 +71,9 @@ export default function RootLayout({
                   <AccessibilityProvider>
                     <EnhancedNotificationProvider appName="LinguaAI - Smart Language Learning">
                       <NotificationPopupWrapper>
-                        {children}
+                        <div className="min-h-screen transition-colors duration-300">
+                          {children}
+                        </div>
                       </NotificationPopupWrapper>
                     </EnhancedNotificationProvider>
                   </AccessibilityProvider>

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface AuthFlowGuardProps {
   children: React.ReactNode;
@@ -58,26 +59,27 @@ export default function AuthFlowGuard({ children }: AuthFlowGuardProps) {
 
     // If user is authenticated, check if setup is complete
     try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('base_language, learning_languages')
-        .eq('id', user.id)
-        .single();
-
-      if (error) {
-        console.error('Error checking user setup:', error);
+      // Guard against missing db
+      if (!db) {
+        console.warn('[AuthFlowGuard] Firestore not initialized, skipping setup check');
         setUserSetupComplete(false);
-      } else {
-        // Check if user has completed language selection
-        const hasBaseLanguage = profile?.base_language;
-        const hasLearningLanguages = profile?.learning_languages && profile.learning_languages.length > 0;
-        
-        setUserSetupComplete(hasBaseLanguage && hasLearningLanguages);
+        setIsChecking(false);
+        return;
       }
+
+      const profileSnap = await getDoc(doc(db, 'profiles', user.id));
+      const profile = profileSnap.exists() ? profileSnap.data() : null;
+
+      // Check if user has completed language selection
+      const hasBaseLanguage = profile?.base_language;
+      const hasLearningLanguages = profile?.learning_languages && profile.learning_languages.length > 0;
+      
+      setUserSetupComplete(!!(hasBaseLanguage && hasLearningLanguages));
     } catch (error) {
       console.error('Error checking user setup:', error);
       setUserSetupComplete(false);
     }
+
 
     // Handle routing based on setup status
     if (!userSetupComplete) {

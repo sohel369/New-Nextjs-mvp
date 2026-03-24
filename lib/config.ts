@@ -1,15 +1,16 @@
 // Application Configuration
 export const config = {
-  // Supabase Configuration
-  supabase: {
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://uaijcvhvyurbnfmkqnqt.supabase.co',
-    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhaWpjdmh2eXVyYm5mbWtxbnF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAyMTU3NzksImV4cCI6MjA3NTc5MTc3OX0.FbBITvB9ITLt7L3e5BAiP4VYa0Qw7YCOx-SHHl1k8zY',
-    serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhaWpjdmh2eXVyYm5mbWtxbnF0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDIxNTc3OSwiZXhwIjoyMDc1NzkxNzc5fQ.ZAMRcMEYtiF7lJjnrVzJvCqshe0QEDIopJ-P9fGDs-8'
-  },
+  // Placeholder for future if needed
   
   // Firebase Configuration
   firebase: {
-    uri: 'https://myreactmvp.firebaseapp.com'
+    apiKey: "AIzaSyDNHKYbgeHsSx3fmLMNLquCD8TlZZfPzSE",
+    authDomain: "car-rental-dubai-86748.firebaseapp.com",
+    projectId: "car-rental-dubai-86748",
+    storageBucket: "car-rental-dubai-86748.firebasestorage.app",
+    messagingSenderId: "436752043263",
+    appId: "1:436752043263:web:2776b12711b66681aad0ca",
+    measurementId: "G-0MLN1RWTB0"
   },
   
   // OAuth Configuration
@@ -17,8 +18,7 @@ export const config = {
     redirectTo: process.env.NEXT_PUBLIC_OAUTH_REDIRECT_URL || '/auth/callback',
     allowedOrigins: [
       'http://localhost:3000',
-      'https://myreactmvp.firebaseapp.com',
-      'https://uaijcvhvyurbnfmkqnqt.supabase.co'
+      'https://car-rental-dubai-86748.firebaseapp.com'
     ],
     google: {
       clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '1043282254579-3gdapkcdb40dvg77hiar17sjhdor303c.apps.googleusercontent.com'

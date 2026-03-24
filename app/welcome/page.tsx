@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { db } from '../../lib/firebase';
+import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { 
   CheckCircle, 
   ArrowRight, 
@@ -91,37 +92,28 @@ export default function WelcomePage() {
       setError(null);
 
       // Update user profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          base_language: formData.baseLanguage,
-          learning_languages: formData.learningLanguages,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-
-      if (profileError) {
-        throw new Error('Failed to update profile');
-      }
+      const profileRef = doc(db, 'profiles', user.id);
+      await updateDoc(profileRef, {
+        base_language: formData.baseLanguage,
+        learning_languages: formData.learningLanguages,
+        interests: formData.interests,
+        goals: formData.goals,
+        updated_at: new Date().toISOString()
+      });
 
       // Create user settings
-      const { error: settingsError } = await supabase
-        .from('user_settings')
-        .upsert({
-          user_id: user.id,
-          dark_mode: true,
-          notifications_enabled: true,
-          sound_enabled: true,
-          auto_play_audio: true,
-          high_contrast: false,
-          large_text: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-
-      if (settingsError) {
-        console.error('Error creating user settings:', settingsError);
-      }
+      const settingsRef = doc(db, 'user_settings', user.id);
+      await setDoc(settingsRef, {
+        user_id: user.id,
+        dark_mode: true,
+        notifications_enabled: true,
+        sound_enabled: true,
+        auto_play_audio: true,
+        high_contrast: false,
+        large_text: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }, { merge: true });
 
       // Redirect to profile page
       router.push('/profile');

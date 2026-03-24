@@ -1,4 +1,19 @@
-import { supabase } from '../lib/supabase';
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  updateDoc, 
+  doc, 
+  deleteDoc, 
+  writeBatch,
+  getDoc,
+  getCountFromServer
+} from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export interface CreateNotificationData {
   user_id: string;
@@ -13,23 +28,20 @@ export class NotificationService {
    */
   static async createNotification(data: CreateNotificationData) {
     try {
-      const { data: notification, error } = await supabase
-        .from('notifications')
-        .insert([{
-          user_id: data.user_id,
-          title: data.title,
-          message: data.message,
-          type: data.type || 'info',
-        }])
-        .select()
-        .single();
+      const notification = {
+        user_id: data.user_id,
+        title: data.title,
+        message: data.message,
+        type: data.type || 'info',
+        read: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
 
-      if (error) {
-        throw error;
-      }
-
-      return notification;
+      const docRef = await addDoc(collection(db, 'notifications'), notification);
+      return { id: docRef.id, ...notification };
     } catch (error) {
+      console.error('Error creating notification:', error);
       throw error;
     }
   }
@@ -44,24 +56,26 @@ export class NotificationService {
     type: 'info' | 'success' | 'warning' | 'error' = 'info'
   ) {
     try {
-      const notifications = userIds.map(userId => ({
-        user_id: userId,
-        title,
-        message,
-        type,
-      }));
+      const batch = writeBatch(db);
+      const notifications = userIds.map(userId => {
+        const docRef = doc(collection(db, 'notifications'));
+        const notification = {
+          user_id: userId,
+          title,
+          message,
+          type,
+          read: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        batch.set(docRef, notification);
+        return { id: docRef.id, ...notification };
+      });
 
-      const { data, error } = await supabase
-        .from('notifications')
-        .insert(notifications)
-        .select();
-
-      if (error) {
-        throw error;
-      }
-
-      return data;
+      await batch.commit();
+      return notifications;
     } catch (error) {
+      console.error('Error creating bulk notifications:', error);
       throw error;
     }
   }
@@ -75,22 +89,17 @@ export class NotificationService {
     type: 'info' | 'success' | 'warning' | 'error' = 'info'
   ) {
     try {
-      // Get all user IDs
-      const { data: users, error: usersError } = await supabase
-        .from('users')
-        .select('id');
+      // Get all user IDs from profiles collection
+      const querySnapshot = await getDocs(collection(db, 'profiles'));
+      const userIds = querySnapshot.docs.map(doc => doc.id);
 
-      if (usersError) {
-        throw usersError;
-      }
-
-      if (!users || users.length === 0) {
+      if (userIds.length === 0) {
         return [];
       }
 
-      const userIds = users.map(user => user.id);
       return await this.createBulkNotifications(userIds, title, message, type);
     } catch (error) {
+      console.error('Error creating global notification:', error);
       throw error;
     }
   }
@@ -100,16 +109,13 @@ export class NotificationService {
    */
   static async markAsRead(notificationId: string, userId: string) {
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true, updated_at: new Date().toISOString() })
-        .eq('id', notificationId)
-        .eq('user_id', userId);
-
-      if (error) {
-        throw error;
-      }
+      const docRef = doc(db, 'notifications', notificationId);
+      await updateDoc(docRef, { 
+        read: true, 
+        updated_at: new Date().toISOString() 
+      });
     } catch (error) {
+      console.error('Error marking notification as read:', error);
       throw error;
     }
   }
@@ -119,16 +125,24 @@ export class NotificationService {
    */
   static async markAllAsRead(userId: string) {
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true, updated_at: new Date().toISOString() })
-        .eq('user_id', userId)
-        .eq('read', false);
+      const q = query(
+        collection(db, 'notifications'), 
+        where('user_id', '==', userId), 
+        where('read', '==', false)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      const batch = writeBatch(db);
+      querySnapshot.forEach((doc) => {
+        batch.update(doc.ref, { 
+          read: true, 
+          updated_at: new Date().toISOString() 
+        });
+      });
 
-      if (error) {
-        throw error;
-      }
+      await batch.commit();
     } catch (error) {
+      console.error('Error marking all notifications as read:', error);
       throw error;
     }
   }
@@ -138,16 +152,10 @@ export class NotificationService {
    */
   static async deleteNotification(notificationId: string, userId: string) {
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', notificationId)
-        .eq('user_id', userId);
-
-      if (error) {
-        throw error;
-      }
+      const docRef = doc(db, 'notifications', notificationId);
+      await deleteDoc(docRef);
     } catch (error) {
+      console.error('Error deleting notification:', error);
       throw error;
     }
   }
@@ -155,21 +163,22 @@ export class NotificationService {
   /**
    * Get user's notifications
    */
-  static async getUserNotifications(userId: string, limit: number = 50) {
+  static async getUserNotifications(userId: string, limitCount: number = 50) {
     try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) {
-        throw error;
-      }
-
-      return data;
+      const q = query(
+        collection(db, 'notifications'),
+        where('user_id', '==', userId),
+        orderBy('created_at', 'desc'),
+        limit(limitCount)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
     } catch (error) {
+      console.error('Error getting user notifications:', error);
       throw error;
     }
   }
@@ -179,18 +188,16 @@ export class NotificationService {
    */
   static async getUnreadCount(userId: string) {
     try {
-      const { count, error } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('read', false);
-
-      if (error) {
-        throw error;
-      }
-
-      return count || 0;
+      const q = query(
+        collection(db, 'notifications'), 
+        where('user_id', '==', userId), 
+        where('read', '==', false)
+      );
+      
+      const snapshot = await getCountFromServer(q);
+      return snapshot.data().count;
     } catch (error) {
+      console.error('Error getting unread count:', error);
       throw error;
     }
   }

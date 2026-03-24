@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Clock, Target, Star, Trophy, TrendingUp, Calendar, Award } from 'lucide-react';
+import { useTranslation } from '../hooks/useTranslation';
 import { getQuizHistory, getQuizStats } from '../lib/quizHistory';
 import { QuizHistory } from '../data/languageData';
 
@@ -12,6 +13,7 @@ const QuizHistoryComponent: React.FC<QuizHistoryProps> = React.memo(({ userId, l
   const [quizHistory, setQuizHistory] = useState<QuizHistory[]>([]);
   const [quizStats, setQuizStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const t = useTranslation();
 
   useEffect(() => {
     if (userId) {
@@ -91,7 +93,7 @@ const QuizHistoryComponent: React.FC<QuizHistoryProps> = React.memo(({ userId, l
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
         <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
           <Trophy className="w-6 h-6 mr-2 text-yellow-400" />
-          Quiz History
+          {t('history')}
         </h3>
         <div className="text-center py-8">
           <div className="text-6xl mb-4">📚</div>

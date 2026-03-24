@@ -57,7 +57,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
     loading,
     markAsRead,
     markAllAsRead,
-    refreshNotifications,
+    refreshNotifications: async () => {
+      // Not strictly needed with onSnapshot
+    },
+
     requestNotificationPermission,
     showNotification,
   };

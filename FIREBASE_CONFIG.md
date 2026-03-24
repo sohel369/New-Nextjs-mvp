@@ -1,12 +1,14 @@
 # Firebase Configuration
 
-## 🔥 Firebase URI Added
+## 🔥 Firebase Project: Car Rental Dubai
 
-Your application now includes support for the Firebase URI: `https://myreactmvp.firebaseapp.com`
+Your application is now fully configured for the Firebase project: `car-rental-dubai-86748`
 
 ### 📋 Configuration Details
 
-#### **Firebase URI**: `https://myreactmvp.firebaseapp.com`
+#### **Firebase URI**: `https://car-rental-dubai-86748.firebaseapp.com`
+- Project Name: Car Rental Dubai
+- Project ID: car-rental-dubai-86748
 - Used for OAuth redirects
 - Domain verification
 - Production deployment
@@ -28,27 +30,45 @@ Your application now includes support for the Firebase URI: `https://myreactmvp.
 #### **Allowed Origins**
 - `http://localhost:3000` (Development)
 - `https://myreactmvp.firebaseapp.com` (Production)
-- `https://uaijcvhvyurbnfmkqnqt.supabase.co` (Supabase)
 
 #### **Helper Functions**
 - `getRedirectUrl()` - Dynamic redirect URL generation
 - `isAllowedOrigin()` - Origin validation
 - Centralized configuration management
 
-### 🚀 Usage
+### 🚀 Setup Checklist
 
-The Firebase URI is automatically used when:
-- Deploying to production
-- OAuth redirects from Google
-- Domain verification
-- Cross-origin requests
+To fix the **400 (Bad Request)** and **Firestore (Database Not Found)** errors, please ensure:
 
-### 📝 Environment Variables
+#### **1. Authentication Setup**
+- Go to **Firebase Console** → **Authentication** → **Sign-in method**.
+- **Enable "Email/Password"**. If this is disabled, Firebase will reject all login/signup attempts with a 400 error.
+- (Optional) Enable "Google" if you want to use Social Login.
 
-You can override the Firebase URI by setting:
-```bash
-NEXT_PUBLIC_FIREBASE_URI=https://myreactmvp.firebaseapp.com
-```
+#### **2. Authorized Domains**
+- In **Authentication** → **Settings** (tab) → **Authorized domains**.
+- Verify `localhost` is listed. It should be by default, but double-check if it was removed.
+
+#### **3. Firestore Database Initialization**
+- Go to **Firebase Console** → **Firestore Database**.
+- Click **"Create database"**.
+- Choose **"Start in test mode"** (to allow initial writes) or **"Start in production mode"** (requires rules).
+- Ensure the database ID is `(default)`.
+- **CRITICAL**: If you see "Database not found" in your console, it means this step was skipped.
+
+#### **4. API Keys & Restrictions**
+- If you have restricted your API Key in the Google Cloud Console, ensure **"Identity Toolkit API"** and **"Cloud Firestore API"** are allowed.
+
+### 📝 Server-Side Setup (Admin SDK)
+
+The **500 errors** in the settings API are caused by missing Admin SDK credentials in your `.env.local`. 
+
+1. Go to **Project Settings** → **Service accounts**.
+2. Click **"Generate new private key"**.
+3. Download the JSON file.
+4. Update your `.env.local` with:
+   - `FIREBASE_CLIENT_EMAIL`: The `client_email` from your JSON.
+   - `FIREBASE_PRIVATE_KEY`: The `private_key` from your JSON (make sure to include the `\n` characters).
 
 ### ✅ Benefits
 

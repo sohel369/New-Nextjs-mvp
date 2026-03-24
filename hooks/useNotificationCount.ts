@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  doc, 
+  updateDoc,
+  orderBy,
+  writeBatch
+} from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Notification {
@@ -18,58 +28,14 @@ export const useNotificationCount = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  // Fetch unread notifications from Supabase
-  const fetchUnreadNotifications = async () => {
-    if (!user) {
-      setUnreadCount(0);
-      setNotifications([]);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('read', false)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching notifications:', error);
-        return;
-      }
-
-      setNotifications(data || []);
-      setUnreadCount(data?.length || 0);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Mark notification as read
   const markAsRead = async (notificationId: string) => {
     if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true })
-        .eq('id', notificationId)
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('Error marking notification as read:', error);
-        return;
-      }
-
-      // Update local state
-      setNotifications(prev => 
-        prev.filter(notification => notification.id !== notificationId)
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      const docRef = doc(db, 'notifications', notificationId);
+      await updateDoc(docRef, { read: true });
+      // Local state will be updated by the onSnapshot listener
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
@@ -80,19 +46,13 @@ export const useNotificationCount = () => {
     if (!user || unreadCount === 0) return;
 
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true })
-        .eq('user_id', user.id)
-        .eq('read', false);
-
-      if (error) {
-        console.error('Error marking all notifications as read:', error);
-        return;
-      }
-
-      setNotifications([]);
-      setUnreadCount(0);
+      const batch = writeBatch(db);
+      notifications.forEach(notification => {
+        const docRef = doc(db, 'notifications', notification.id);
+        batch.update(docRef, { read: true });
+      });
+      await batch.commit();
+      // Local state will be updated by the onSnapshot listener
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
     }
@@ -100,56 +60,39 @@ export const useNotificationCount = () => {
 
   // Set up real-time subscription
   useEffect(() => {
-    if (!user) return;
+    if (!user || !db || (db as any)._type !== 'Firestore' && typeof (db as any).collection !== 'function') {
+      setUnreadCount(0);
+      setNotifications([]);
+      setLoading(false);
+      return;
+    }
 
-    // Initial fetch
-    fetchUnreadNotifications();
+    setLoading(true);
 
-    // Set up real-time subscription
-    const channel = supabase
-      .channel('notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('Notification change received:', payload);
-          
-          if (payload.eventType === 'INSERT') {
-            // New notification added
-            const newNotification = payload.new as Notification;
-            if (!newNotification.read) {
-              setNotifications(prev => [newNotification, ...prev]);
-              setUnreadCount(prev => prev + 1);
-            }
-          } else if (payload.eventType === 'UPDATE') {
-            // Notification updated (likely marked as read)
-            const updatedNotification = payload.new as Notification;
-            if (updatedNotification.read) {
-              setNotifications(prev => 
-                prev.filter(n => n.id !== updatedNotification.id)
-              );
-              setUnreadCount(prev => Math.max(0, prev - 1));
-            }
-          } else if (payload.eventType === 'DELETE') {
-            // Notification deleted
-            const deletedNotification = payload.old as Notification;
-            setNotifications(prev => 
-              prev.filter(n => n.id !== deletedNotification.id)
-            );
-            setUnreadCount(prev => Math.max(0, prev - 1));
-          }
-        }
-      )
-      .subscribe();
+    // Query for unread notifications for the current user
+    const q = query(
+      collection(db, 'notifications'),
+      where('user_id', '==', user.id),
+      where('read', '==', false),
+      orderBy('created_at', 'desc')
+    );
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Set up the listener
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const newNotifications = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Notification[];
+      
+      setNotifications(newNotifications);
+      setUnreadCount(newNotifications.length);
+      setLoading(false);
+    }, (error) => {
+      console.error('Error in notifications snapshot:', error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [user]);
 
   return {
@@ -158,6 +101,7 @@ export const useNotificationCount = () => {
     loading,
     markAsRead,
     markAllAsRead,
-    refreshNotifications: fetchUnreadNotifications,
+    refreshNotifications: async () => {}, // Not strictly needed with onSnapshot, but keeping interface
   };
+
 };

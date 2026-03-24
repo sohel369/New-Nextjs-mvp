@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { collection, query, where, orderBy, limit, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { 
   Sparkles, 
   Brain, 
@@ -78,19 +79,24 @@ export default function AICreativeFeatures({
 
   const loadGeneratedContent = async () => {
     try {
-      const { data, error } = await supabase
-        .from('ai_generated_content')
-        .select('*')
-        .eq('language', language)
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(20);
+      if (!user) return;
+      
+      const contentRef = collection(db, 'ai_generated_content');
+      const q = query(
+        contentRef,
+        where('language', '==', language),
+        where('user_id', '==', user.id),
+        orderBy('created_at', 'desc'),
+        limit(20)
+      );
 
-      if (error) {
-        console.error('Error loading generated content:', error);
-      } else {
-        setGeneratedContent(data || []);
-      }
+      const querySnapshot = await getDocs(q);
+      const data = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as any[];
+
+      setGeneratedContent(data || []);
     } catch (error) {
       console.error('Error loading generated content:', error);
     }
@@ -112,31 +118,26 @@ export default function AICreativeFeatures({
       
       // Save to database
       const safeType = getSafeType();
-      const { data, error } = await supabase
-        .from('ai_generated_content')
-        .insert({
-          user_id: user?.id,
-          language: language,
-          type: safeType,
-          title: content.title,
-          content: content.content,
-          difficulty: customization.difficulty,
-          tags: content.tags,
-          ai_generated: true,
-          prompt: prompt,
-          customization: customization,
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single();
+      const contentData = {
+        user_id: user?.id,
+        language: language,
+        type: safeType,
+        title: content.title,
+        content: content.content,
+        difficulty: customization.difficulty,
+        tags: content.tags,
+        ai_generated: true,
+        prompt: prompt,
+        customization: customization,
+        created_at: new Date().toISOString()
+      };
 
-      if (error) {
-        console.error('Error saving generated content:', error);
-      } else {
-        setGeneratedContent(prev => [data, ...prev]);
-        onContentGenerated?.(data);
-        setPrompt('');
-      }
+      const docRef = await addDoc(collection(db, 'ai_generated_content'), contentData);
+      const newContent = { id: docRef.id, ...contentData } as any;
+
+      setGeneratedContent(prev => [newContent, ...prev]);
+      onContentGenerated?.(newContent);
+      setPrompt('');
     } catch (error) {
       console.error('Error generating content:', error);
     } finally {
@@ -361,10 +362,8 @@ export default function AICreativeFeatures({
 
   const rateContent = async (contentId: string, rating: number) => {
     try {
-      await supabase
-        .from('ai_generated_content')
-        .update({ user_rating: rating })
-        .eq('id', contentId);
+      const contentRef = doc(db, 'ai_generated_content', contentId);
+      await updateDoc(contentRef, { user_rating: rating });
 
       setGeneratedContent(prev => 
         prev.map(content => 

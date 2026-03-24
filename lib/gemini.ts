@@ -39,15 +39,15 @@ export async function sendMessage(message: string): Promise<string> {
     
     if (!response.ok) {
       const errorData: ChatError = data;
-      console.error('[Gemini Client] API Error:', errorData);
+      console.error('[Gemini Client] API Error details:', JSON.stringify(errorData, null, 2));
       
       // Handle specific error cases
+      if (errorData.details?.includes('429') || errorData.details?.includes('quota')) {
+        throw new Error('AI Coach is currently at its limit (Quota Exceeded). Please try again later or upgrade your plan.');
+      }
+
       if (errorData.error === 'Gemini API key not configured') {
         throw new Error('AI Coach is not configured. Please contact support to enable this feature.');
-      }
-      
-      if (errorData.error === 'No valid response received from Gemini') {
-        throw new Error('AI Coach is temporarily unavailable. Please try again in a moment.');
       }
       
       throw new Error(errorData.error || `HTTP ${response.status}: ${errorData.details || 'Unknown error'}`);

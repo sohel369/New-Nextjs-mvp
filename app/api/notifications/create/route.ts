@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { initializeApp, getApps, getApp, cert } from 'firebase-admin/app';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
-// Runtime configuration for API route
-export const runtime = 'nodejs';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-// Create admin client for server-side operations
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+// Initialize Firebase Admin (server-side only)
+function getAdminDb() {
+  if (!getApps().length) {
+    initializeApp({
+      credential: cert({
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      }),
+    });
   }
-});
+  return getFirestore(getApp());
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -135,39 +136,25 @@ export async function POST(req: NextRequest) {
         };
     }
 
-    // Create notification directly using admin client
-    const { data: result, error } = await supabaseAdmin
-      .from('notifications')
-      .insert([{
-        user_id,
-        title: notification.title,
-        message: notification.message,
-        type: notification.type
-      }])
-      .select()
-      .single();
+    const db = getAdminDb();
+    const notificationData = {
+      user_id,
+      title: notification.title,
+      message: notification.message,
+      type: notification.type,
+      read: false,
+      created_at: FieldValue.serverTimestamp()
+    };
 
-    if (error) {
-      // If table doesn't exist, still return success for graceful degradation
-      if (error.code === 'PGRST116' || error.message?.includes('relation "notifications" does not exist')) {
-        console.warn('Notifications table does not exist. Please run the database migration.');
-        return NextResponse.json({
-          success: true,
-          notification: {
-            id: `temp_${Date.now()}`,
-            ...notification,
-            user_id,
-            created_at: new Date().toISOString()
-          },
-          warning: 'Notifications table not found. Notification created in memory only.'
-        });
-      }
-      throw error;
-    }
+    const docRef = await db.collection('notifications').add(notificationData);
 
     return NextResponse.json({
       success: true,
-      notification: result
+      notification: {
+        id: docRef.id,
+        ...notificationData,
+        created_at: new Date().toISOString() // Fallback for client
+      }
     });
 
   } catch (error: any) {

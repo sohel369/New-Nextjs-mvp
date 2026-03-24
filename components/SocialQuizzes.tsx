@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { 
   Users, 
   MessageCircle, 
@@ -88,21 +89,21 @@ export default function SocialQuizzes({ language, onQuizComplete }: SocialQuizze
   const loadSocialQuizzes = async () => {
     try {
       setLoading(true);
-      
-      // Load social quizzes from database or use sample data
-      const { data, error } = await supabase
-        .from('social_quizzes')
-        .select('*')
-        .eq('language', language)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error loading social quizzes:', error);
-        // Use sample data if database fails
-        setQuizzes(getSampleSocialQuizzes(language));
+      // Load social quizzes from Firebase Firestore
+      const q = query(
+        collection(db, 'social_quizzes'),
+        where('language', '==', language),
+        where('is_active', '==', true)
+      );
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as SocialQuiz[];
+        setQuizzes(data);
       } else {
-        setQuizzes(data || getSampleSocialQuizzes(language));
+        // Fall back to sample data if Firestore has no quizzes yet
+        setQuizzes(getSampleSocialQuizzes(language));
       }
     } catch (error) {
       console.error('Error loading social quizzes:', error);
@@ -445,19 +446,18 @@ export default function SocialQuizzes({ language, onQuizComplete }: SocialQuizze
     setQuizCompleted(true);
     
     if (selectedQuiz && user) {
-      // Save quiz attempt
+      // Save quiz attempt to Firebase Firestore
       try {
-        await supabase
-          .from('user_quiz_attempts')
-          .insert({
-            user_id: user.id,
-            quiz_id: selectedQuiz.id,
-            score: score,
-            total_questions: selectedQuiz.questions.length,
-            correct_answers: score,
-            time_taken: selectedQuiz.timeLimit - timeLeft,
-            xp_earned: Math.round((score / selectedQuiz.questions.length) * 100)
-          });
+        await addDoc(collection(db, 'user_quiz_attempts'), {
+          user_id: user.id,
+          quiz_id: selectedQuiz.id,
+          score: score,
+          total_questions: selectedQuiz.questions.length,
+          correct_answers: score,
+          time_taken: selectedQuiz.timeLimit - timeLeft,
+          xp_earned: Math.round((score / selectedQuiz.questions.length) * 100),
+          created_at: new Date().toISOString()
+        });
       } catch (error) {
         console.error('Error saving quiz attempt:', error);
       }

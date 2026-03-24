@@ -8,8 +8,19 @@ export default function PWARegister() {
   const [swError, setSwError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Register service worker
+    // Register service worker only in production
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[PWA] Development mode: Unregistering any existing service workers');
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (let registration of registrations) {
+            registration.unregister();
+            console.log('[PWA] Service Worker unregistered successfully');
+          }
+        });
+        return;
+      }
+
       const registerSW = async () => {
         try {
           // Check if service worker is already registered
@@ -141,8 +152,8 @@ export default function PWARegister() {
   }, [swRegistered]);
 
   // Debug info (remove in production)
-  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-    useEffect(() => {
+  useEffect(() => {
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       navigator.serviceWorker?.getRegistration().then((reg) => {
         if (reg) {
           console.log('[PWA Debug] Registration:', reg);
@@ -150,8 +161,9 @@ export default function PWARegister() {
           console.log('[PWA Debug] Controller:', navigator.serviceWorker.controller?.state);
         }
       });
+    }
   }, []);
-  }
+
 
   return null;
 }

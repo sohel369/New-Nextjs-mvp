@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage, languages } from '../../contexts/LanguageContext';
 import { useTranslation } from '../../hooks/useTranslation';
-import { supabase } from '../../lib/supabase';
+import { db } from '../../lib/firebase';
+import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { 
   Globe, 
   Check, 
@@ -64,38 +65,26 @@ export default function LanguageSelectionPage() {
       setError(null);
 
       // Update user profile with language preferences
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          base_language: baseLanguage,
-          learning_languages: selectedLanguages,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-
-      if (profileError) {
-        throw new Error('Failed to update language preferences');
-      }
+      const profileRef = doc(db, 'profiles', user.id);
+      await updateDoc(profileRef, {
+        base_language: baseLanguage,
+        learning_languages: selectedLanguages,
+        updated_at: new Date().toISOString()
+      });
 
       // Create default user settings
-      const { error: settingsError } = await supabase
-        .from('user_settings')
-        .upsert({
-          user_id: user.id,
-          dark_mode: true,
-          notifications_enabled: true,
-          sound_enabled: true,
-          auto_play_audio: true,
-          high_contrast: false,
-          large_text: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-
-      if (settingsError) {
-        console.error('Error creating user settings:', settingsError);
-        // Don't throw error here as it's not critical
-      }
+      const settingsRef = doc(db, 'user_settings', user.id);
+      await setDoc(settingsRef, {
+        user_id: user.id,
+        dark_mode: true,
+        notifications_enabled: true,
+        sound_enabled: true,
+        auto_play_audio: true,
+        high_contrast: false,
+        large_text: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }, { merge: true });
 
       // Redirect to home page
       router.push('/');

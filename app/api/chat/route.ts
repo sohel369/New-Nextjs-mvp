@@ -106,12 +106,18 @@ User message: ${message}`;
 
       return NextResponse.json({ reply });
       
-    } catch (genError) {
-      console.error('[Gemini API] Generation error:', genError);
+    } catch (genError: any) {
+      console.error('[Gemini API] Generation error captured:', genError);
+      
+      const isQuotaError = genError?.status === 429 || 
+                          genError?.message?.includes('429') || 
+                          genError?.message?.includes('quota');
+
       return NextResponse.json({ 
-        error: 'Failed to generate content',
-        details: genError instanceof Error ? genError.message : 'Unknown generation error'
-      }, { status: 500 });
+        error: isQuotaError ? 'Quota exceeded' : 'Failed to generate content',
+        details: genError instanceof Error ? genError.message : 'Unknown generation error',
+        status: genError?.status || 500
+      }, { status: genError?.status || 500 });
     }
 
   } catch (error) {

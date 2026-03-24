@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { 
   Video, 
   Mic, 
@@ -95,17 +96,20 @@ export default function LiveTeacherIntegration({
 
   const checkTeacherAvailability = async () => {
     try {
-      const { data, error } = await supabase
-        .from('teacher_availability')
-        .select('status')
-        .eq('language', language)
-        .eq('is_online', true)
-        .single();
+      // In Firestore, teacher_availability might be a collection or a specific doc
+      // Assuming a doc per language in 'teacher_availability'
+      const docRef = doc(db, 'teacher_availability', language);
+      const docSnap = await getDoc(docRef);
 
-      if (error) {
-        setTeacherStatus('offline');
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data?.is_online) {
+          setTeacherStatus(data?.status || 'available');
+        } else {
+          setTeacherStatus('offline');
+        }
       } else {
-        setTeacherStatus(data?.status || 'offline');
+        setTeacherStatus('offline');
       }
     } catch (error) {
       console.error('Error checking teacher availability:', error);

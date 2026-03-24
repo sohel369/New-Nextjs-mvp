@@ -74,7 +74,7 @@ export default function LanguageQuiz({ selectedLanguages }: LanguageQuizProps) {
     try {
       setLoading(true);
       
-      // Use local quiz data instead of Supabase
+      // Use local quiz data instead of cloud database
       const { QUIZ_QUESTIONS } = await import('../data/quizSystemData');
       const languageQuestions = QUIZ_QUESTIONS[selectedLanguage] || [];
       

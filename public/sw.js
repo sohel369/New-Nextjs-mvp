@@ -1,8 +1,8 @@
 // Service Worker for PWA with Offline Support
-const CACHE_NAME = 'lingua-ai-v2';
-const STATIC_CACHE_NAME = 'lingua-ai-static-v2';
-const DYNAMIC_CACHE_NAME = 'lingua-ai-dynamic-v2';
-const API_CACHE_NAME = 'lingua-ai-api-v2';
+const CACHE_NAME = 'lingua-ai-v3';
+const STATIC_CACHE_NAME = 'lingua-ai-static-v3';
+const DYNAMIC_CACHE_NAME = 'lingua-ai-dynamic-v3';
+const API_CACHE_NAME = 'lingua-ai-api-v3';
 
 // Assets to cache immediately on install
 const STATIC_ASSETS = [

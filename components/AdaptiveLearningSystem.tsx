@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { collection, query, where, orderBy, limit, getDocs, addDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { 
   Brain, 
   Target, 
@@ -70,21 +71,14 @@ export default function AdaptiveLearningSystem({
   const loadLearningProfile = async () => {
     try {
       setLoading(true);
+      if (!user) return;
       
       // Load user's learning profile
-      const { data: profile, error: profileError } = await supabase
-        .from('learning_profiles')
-        .select('*')
-        .eq('user_id', user?.id)
-        .eq('language', language)
-        .single();
+      const docRef = doc(db, 'learning_profiles', `${user.id}_${language}`);
+      const docSnap = await getDoc(docRef);
 
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Error loading learning profile:', profileError);
-      }
-
-      if (profile) {
-        setLearningProfile(profile);
+      if (docSnap.exists()) {
+        setLearningProfile(docSnap.data() as LearningProfile);
       } else {
         // Create initial learning profile
         await createInitialProfile();
@@ -118,21 +112,15 @@ export default function AdaptiveLearningSystem({
     };
 
     try {
-      const { error } = await supabase
-        .from('learning_profiles')
-        .insert({
-          user_id: user.id,
-          language: language,
-          ...initialProfile,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-
-      if (error) {
-        console.error('Error creating learning profile:', error);
-      } else {
-        setLearningProfile(initialProfile);
-      }
+      const docRef = doc(db, 'learning_profiles', `${user.id}_${language}`);
+      await setDoc(docRef, {
+        user_id: user.id,
+        language: language,
+        ...initialProfile,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+      setLearningProfile(initialProfile);
     } catch (error) {
       console.error('Error creating learning profile:', error);
     }
@@ -142,14 +130,19 @@ export default function AdaptiveLearningSystem({
     if (!learningProfile) return;
 
     try {
+      if (!user) return;
+
       // Analyze user performance data
-      const { data: performanceData } = await supabase
-        .from('user_performance')
-        .select('*')
-        .eq('user_id', user?.id)
-        .eq('language', language)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      const q = query(
+        collection(db, 'user_performance'),
+        where('user_id', '==', user.id),
+        where('language', '==', language),
+        orderBy('created_at', 'desc'),
+        limit(50)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const performanceData = querySnapshot.docs.map(doc => doc.data());
 
       // Generate adaptive content based on profile and performance
       const content = await generateContentRecommendations(performanceData || []);
@@ -299,21 +292,14 @@ export default function AdaptiveLearningSystem({
     if (!user || !learningProfile) return;
 
     try {
-      const { error } = await supabase
-        .from('learning_profiles')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id)
-        .eq('language', language);
+      const docRef = doc(db, 'learning_profiles', `${user.id}_${language}`);
+      await updateDoc(docRef, {
+        ...updates,
+        updated_at: new Date().toISOString()
+      });
 
-      if (error) {
-        console.error('Error updating learning profile:', error);
-      } else {
-        setLearningProfile(prev => prev ? { ...prev, ...updates } : null);
-        await generateAdaptiveContent();
-      }
+      setLearningProfile(prev => prev ? { ...prev, ...updates } : null);
+      await generateAdaptiveContent();
     } catch (error) {
       console.error('Error updating learning profile:', error);
     }

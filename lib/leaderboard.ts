@@ -1,5 +1,3 @@
-import { supabase } from './supabase';
-
 export interface XPUpdateResult {
   new_total_xp: number;
   new_level: number;
@@ -43,24 +41,32 @@ export async function updateUserXP(
   activityType: string = 'lesson'
 ): Promise<XPUpdateResult | null> {
   try {
-    const { data, error } = await supabase
-      .rpc('update_user_xp', {
-        user_id: userId,
-        xp_gained: xpGained,
-        activity_type: activityType
-      });
+    const response = await fetch('/api/leaderboard', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId,
+        xpGained,
+        activityType
+      }),
+    });
 
-    if (error) {
-      console.error('Error updating user XP:', error);
+    const data = await response.json();
+
+    if (!data.success) {
+      console.error('Error updating user XP:', data.error);
       return null;
     }
 
-    return data[0] as XPUpdateResult;
+    return data.data as XPUpdateResult;
   } catch (error) {
     console.error('Error updating user XP:', error);
     return null;
   }
 }
+
 
 /**
  * Get leaderboard data

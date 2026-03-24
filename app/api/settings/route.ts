@@ -1,13 +1,30 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { initializeApp, getApps, getApp, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
-// Get Supabase configuration with fallbacks
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://uaijcvhvyurbnfmkqnqt.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhaWpjdmh2eXVyYm5mbWtxbnF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAyMTU3NzksImV4cCI6MjA3NTc5MTc3OX0.FbBITvB9ITLt7L3e5BAiP4VYa0Qw7YCOx-SHHl1k8zY';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhaWpjdmh2eXVyYm5mbWtxbnF0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDIxNTc3OSwiZXhwIjoyMDc1NzkxNzc5fQ.ZAMRcMEYtiF7lJjnrVzJvCqshe0QEDIopJ-P9fGDs-8';
+// Initialize Firebase Admin (server-side only)
+function getAdminDb() {
+  if (!getApps().length) {
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    if (!privateKey || privateKey.includes('YOUR_PRIVATE_KEY_HERE')) {
+      console.warn('[FirebaseAdmin] Missing or placeholder private key. Admin SDK operations will fail.');
+      // Return a mock or throw a more specific error that the caller can handle
+      throw new Error('Firebase Admin SDK not configured. Check your .env.local file.');
+    }
+
+    initializeApp({
+      credential: cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
+    });
+  }
+  return getFirestore(getApp());
+}
 
 export interface UserSettings {
   id: string;
@@ -46,6 +63,40 @@ export interface UserSettings {
   updated_at: string;
 }
 
+// Default settings for new users
+const defaultSettings = {
+  theme: 'dark',
+  font_size: 'medium',
+  font_family: 'Inter',
+  notifications_enabled: true,
+  learning_reminders: true,
+  achievement_notifications: true,
+  live_session_alerts: true,
+  security_alerts: true,
+  email_notifications: false,
+  push_notifications: true,
+  sound_enabled: true,
+  sound_effects: true,
+  background_music: false,
+  voice_guidance: false,
+  sound_volume: 80,
+  high_contrast: false,
+  reduced_motion: false,
+  screen_reader: false,
+  keyboard_navigation: false,
+  daily_goal_minutes: 15,
+  reminder_time: '09:00',
+  preferred_difficulty: 'adaptive',
+  auto_advance: true,
+  profile_visibility: 'public',
+  show_progress: true,
+  show_achievements: true,
+  show_streak: true,
+  interface_language: 'en',
+  learning_language: 'ar',
+  native_language: 'en',
+};
+
 // GET - Fetch user settings
 export async function GET(request: NextRequest) {
   try {
@@ -59,22 +110,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch settings directly from table using admin client to avoid missing RPC and RLS issues
-    const { data, error } = await supabaseAdmin
-      .from('user_settings')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    const db = getAdminDb();
+    const docSnap = await db.collection('user_settings').doc(userId).get();
 
-    if (error) {
-      console.error('Error fetching user settings:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch user settings' },
-        { status: 500 }
-      );
-    }
-
-    if (!data) {
+    if (!docSnap.exists) {
       return NextResponse.json(
         { success: false, error: 'No settings found for user' },
         { status: 404 }
@@ -83,7 +122,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: data as UserSettings
+      data: { id: docSnap.id, ...docSnap.data() } as UserSettings
     });
 
   } catch (error) {
@@ -128,56 +167,18 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Update settings directly using admin client
-    const { data, error } = await supabaseAdmin
-      .from('user_settings')
-      .update({
-        theme: settings.theme,
-        font_size: settings.font_size,
-        font_family: settings.font_family,
-        notifications_enabled: settings.notifications_enabled,
-        learning_reminders: settings.learning_reminders,
-        achievement_notifications: settings.achievement_notifications,
-        live_session_alerts: settings.live_session_alerts,
-        security_alerts: settings.security_alerts,
-        email_notifications: settings.email_notifications,
-        push_notifications: settings.push_notifications,
-        sound_enabled: settings.sound_enabled,
-        sound_effects: settings.sound_effects,
-        background_music: settings.background_music,
-        voice_guidance: settings.voice_guidance,
-        sound_volume: settings.sound_volume,
-        high_contrast: settings.high_contrast,
-        reduced_motion: settings.reduced_motion,
-        screen_reader: settings.screen_reader,
-        keyboard_navigation: settings.keyboard_navigation,
-        daily_goal_minutes: settings.daily_goal_minutes,
-        reminder_time: settings.reminder_time,
-        preferred_difficulty: settings.preferred_difficulty,
-        auto_advance: settings.auto_advance,
-        profile_visibility: settings.profile_visibility,
-        show_progress: settings.show_progress,
-        show_achievements: settings.show_achievements,
-        show_streak: settings.show_streak,
-        interface_language: settings.interface_language,
-        learning_language: settings.learning_language,
-        native_language: settings.native_language
-      })
-      .eq('user_id', userId)
-      .select()
-      .single();
+    const db = getAdminDb();
+    const updateData = {
+      ...settings,
+      updated_at: new Date().toISOString()
+    };
 
-    if (error) {
-      console.error('Error updating user settings:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to update user settings' },
-        { status: 500 }
-      );
-    }
+    await db.collection('user_settings').doc(userId).set(updateData, { merge: true });
+    const updatedSnap = await db.collection('user_settings').doc(userId).get();
 
     return NextResponse.json({
       success: true,
-      data: data as UserSettings,
+      data: { id: updatedSnap.id, ...updatedSnap.data() } as UserSettings,
       message: 'Settings updated successfully'
     });
 
@@ -207,46 +208,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if settings already exist (use admin to bypass RLS)
-    const { data: existingSettings, error: checkError } = await supabaseAdmin
-      .from('user_settings')
-      .select('id')
-      .eq('user_id', userId)
-      .single();
+    const db = getAdminDb();
+    const docRef = db.collection('user_settings').doc(userId);
+    const existing = await docRef.get();
 
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('Error checking existing settings:', checkError);
-      return NextResponse.json(
-        { success: false, error: 'Failed to check existing settings' },
-        { status: 500 }
-      );
-    }
-
-    if (existingSettings) {
+    if (existing.exists) {
       return NextResponse.json(
         { success: false, error: 'Settings already exist for this user' },
         { status: 409 }
       );
     }
 
-    // Create default settings (use admin to bypass RLS)
-    const { data, error } = await supabaseAdmin
-      .from('user_settings')
-      .insert([{ user_id: userId }])
-      .select()
-      .single();
+    const newSettings = {
+      ...defaultSettings,
+      user_id: userId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
 
-    if (error) {
-      console.error('Error creating user settings:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to create user settings' },
-        { status: 500 }
-      );
-    }
+    await docRef.set(newSettings);
 
     return NextResponse.json({
       success: true,
-      data: data as UserSettings,
+      data: { id: userId, ...newSettings } as UserSettings,
       message: 'Default settings created successfully'
     });
 
@@ -267,32 +251,26 @@ export async function POST(request: NextRequest) {
 function validateSettings(settings: any): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  // Validate theme
   if (settings.theme && !['light', 'dark', 'system'].includes(settings.theme)) {
     errors.push('Invalid theme value');
   }
 
-  // Validate font size
   if (settings.font_size && !['small', 'medium', 'large', 'xl'].includes(settings.font_size)) {
     errors.push('Invalid font size value');
   }
 
-  // Validate sound volume
   if (settings.sound_volume !== undefined && (settings.sound_volume < 0 || settings.sound_volume > 100)) {
     errors.push('Sound volume must be between 0 and 100');
   }
 
-  // Validate daily goal minutes
   if (settings.daily_goal_minutes !== undefined && (settings.daily_goal_minutes < 1 || settings.daily_goal_minutes > 480)) {
     errors.push('Daily goal minutes must be between 1 and 480');
   }
 
-  // Validate preferred difficulty
   if (settings.preferred_difficulty && !['easy', 'medium', 'hard', 'adaptive'].includes(settings.preferred_difficulty)) {
     errors.push('Invalid preferred difficulty value');
   }
 
-  // Validate profile visibility
   if (settings.profile_visibility && !['public', 'friends', 'private'].includes(settings.profile_visibility)) {
     errors.push('Invalid profile visibility value');
   }

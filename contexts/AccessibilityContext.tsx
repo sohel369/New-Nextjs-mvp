@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
+import { useSettings } from './SettingsContext';
 
 export interface AccessibilitySettings {
   fontSize: 'small' | 'medium' | 'large' | 'xl';
@@ -202,11 +203,22 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     root.setAttribute('data-notifications-enabled', String(notificationsEnabled));
   };
 
+  const { settings: globalSettings, updateSettings: updateGlobalSettings } = useSettings();
+
   const updateSetting = <K extends keyof AccessibilitySettings>(
     key: K,
     value: AccessibilitySettings[K]
   ) => {
     setSettings(prev => ({ ...prev, [key]: value }));
+    
+    // Sync with Global SettingsContext for persistence and broadcast
+    if (key === 'theme') {
+      updateGlobalSettings({ theme: value as 'light' | 'dark' | 'system' });
+    } else if (key === 'fontSize') {
+      updateGlobalSettings({ font_size: value as 'small' | 'medium' | 'large' | 'xl' });
+    } else if (key === 'highContrast') {
+      updateGlobalSettings({ high_contrast: value as boolean });
+    }
   };
 
   const saveSettings = async () => {

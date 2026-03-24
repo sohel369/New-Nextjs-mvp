@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { 
-  BookOpen, 
-  Trophy, 
-  Users, 
-  Brain, 
-  Target, 
-  Star, 
+import {
+  BookOpen,
+  Trophy,
+  Users,
+  Brain,
+  Target,
+  Star,
   Bell,
   User,
   Settings,
@@ -67,7 +67,7 @@ export default function DashboardPage() {
     setCurrentNotification({ title, message, type });
     setShowNotificationPopup(true);
 
-    // Save to enhanced notification system (Supabase) if user is logged in
+    // Save to enhanced notification system (Firestore) if user is logged in
     if (user) {
       try {
         // Use NotificationService to create persistent notification
@@ -89,7 +89,7 @@ export default function DashboardPage() {
         // Fallback: still show browser notification even if database fails
       }
     }
-    
+
     // Show browser notification if enabled
     if (settings?.notifications_enabled) {
       showNotificationWithSound({
@@ -125,11 +125,11 @@ export default function DashboardPage() {
     // Show welcome notification after 1 second (only once per session)
     const welcomeNotificationId = `dashboard-welcome-${user.id}`;
     const hasShownWelcome = sessionStorage.getItem(welcomeNotificationId);
-    
+
     if (!hasShownWelcome) {
-    const welcomeTimer = setTimeout(() => {
-      showNotification(
-        'Welcome to LinguaAI! 🎉',
+      const welcomeTimer = setTimeout(() => {
+        showNotification(
+          'Welcome to LinguaAI! 🎉',
           `Welcome back, ${user.email || 'learner'}! Start your language learning journey with personalized lessons and AI-powered guidance.`,
           'success',
           welcomeNotificationId
@@ -142,11 +142,11 @@ export default function DashboardPage() {
     // Show daily reminder notification (check if already shown today)
     const dailyReminderId = `dashboard-daily-reminder-${new Date().toDateString()}-${user.id}`;
     const hasShownDailyReminder = localStorage.getItem(dailyReminderId);
-    
+
     if (!hasShownDailyReminder) {
-    const reminderTimer = setTimeout(() => {
-      showNotification(
-        'Daily Learning Reminder ⏰',
+      const reminderTimer = setTimeout(() => {
+        showNotification(
+          'Daily Learning Reminder ⏰',
           'Keep your streak alive! Complete a lesson today to maintain your progress and unlock achievements.',
           'info',
           dailyReminderId
@@ -162,7 +162,7 @@ export default function DashboardPage() {
 
     if (!tipsShown) {
       const tipTimer = setTimeout(() => {
-      showNotification(
+        showNotification(
           'Pro Tip 💡',
           'Try using the AI Coach feature to practice conversations and get personalized feedback on your progress.',
           'info',
@@ -207,7 +207,7 @@ export default function DashboardPage() {
                   <p className="text-white/70 text-xs sm:text-sm hidden sm:block">Smart Language Learning</p>
                 </div>
               </div>
-              
+
               <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-2 sm:space-x-3' : 'space-x-2 sm:space-x-3'}`}>
                 <NotificationBell />
                 <button
@@ -233,34 +233,32 @@ export default function DashboardPage() {
                   <p className="text-white/70 text-sm">Smart Language Learning</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-4">
                 {/* Language Tabs */}
                 <div className="flex bg-white/10 rounded-lg p-1" dir="ltr">
                   <button
                     onClick={() => handleLanguageChange('en')}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center space-x-2 ${
-                      currentLanguage.code === 'en' 
-                        ? 'bg-blue-600 text-white shadow-lg' 
-                        : 'text-white/70 hover:text-white hover:bg-white/5'
-                    }`}
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center space-x-2 ${currentLanguage.code === 'en'
+                      ? 'bg-blue-600 text-white shadow-lg'
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                      }`}
                   >
                     <span>🇺🇸</span>
                     <span>English</span>
                   </button>
                   <button
                     onClick={() => handleLanguageChange('ar')}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center space-x-2 ${
-                      currentLanguage.code === 'ar' 
-                        ? 'bg-blue-600 text-white shadow-lg' 
-                        : 'text-white/70 hover:text-white hover:bg-white/5'
-                    }`}
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center space-x-2 ${currentLanguage.code === 'ar'
+                      ? 'bg-blue-600 text-white shadow-lg'
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                      }`}
                   >
                     <span>🇸🇦</span>
                     <span>العربية</span>
                   </button>
                 </div>
-                
+
                 <Globe className="w-6 h-6 text-white/70 hover:text-white transition-colors cursor-pointer" />
                 <NotificationBell />
                 <button
@@ -282,11 +280,10 @@ export default function DashboardPage() {
                   <button
                     key={lang.code}
                     onClick={() => handleLanguageChange(lang.code)}
-                    className={`flex-shrink-0 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'} ${
-                      currentLanguage.code === lang.code 
-                        ? 'bg-blue-600 text-white shadow-lg' 
-                        : 'text-white/70 hover:text-white hover:bg-white/5'
-                    }`}
+                    className={`flex-shrink-0 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'} ${currentLanguage.code === lang.code
+                      ? 'bg-blue-600 text-white shadow-lg'
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                      }`}
                   >
                     <span className="text-sm">{lang.flag}</span>
                     <span className="hidden sm:inline">{lang.name}</span>
@@ -321,7 +318,7 @@ export default function DashboardPage() {
                     <div className="text-lg sm:text-xl lg:text-2xl font-bold text-white">0</div>
                     <div className="text-white/70 text-xs sm:text-sm">{t('dayStreak')}</div>
                   </div>
-                  
+
                   <div className="text-center">
                     <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-green-500/20 rounded-lg flex items-center justify-center mx-auto mb-1 sm:mb-2">
                       <Star className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-green-400" />
@@ -329,7 +326,7 @@ export default function DashboardPage() {
                     <div className="text-lg sm:text-xl lg:text-2xl font-bold text-white">0</div>
                     <div className="text-white/70 text-xs sm:text-sm">{t('totalXP')}</div>
                   </div>
-                  
+
                   <div className="text-center">
                     <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-blue-500/20 rounded-lg flex items-center justify-center mx-auto mb-1 sm:mb-2">
                       <Trophy className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-blue-400" />
@@ -339,7 +336,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Background decoration */}
               <div className="absolute top-0 right-0 w-16 h-16 sm:w-24 sm:h-24 lg:w-32 lg:h-32 bg-white/10 rounded-full -translate-y-8 sm:-translate-y-12 lg:-translate-y-16 translate-x-8 sm:translate-x-12 lg:translate-x-16"></div>
               <div className="absolute bottom-0 left-0 w-12 h-12 sm:w-18 sm:h-18 lg:w-24 lg:h-24 bg-white/5 rounded-full translate-y-6 sm:translate-y-9 lg:translate-y-12 -translate-x-6 sm:-translate-x-9 lg:-translate-x-12"></div>
@@ -354,17 +351,16 @@ export default function DashboardPage() {
               <p className="text-white/70 text-sm mb-4 sm:mb-6">
                 {t('chooseLanguageDescription')}
               </p>
-              
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {languages.map((lang) => (
                   <button
                     key={lang.code}
                     onClick={() => handleLanguageChange(lang.code)}
-                    className={`p-3 sm:p-4 rounded-xl border-2 transition-all duration-200 ${
-                      currentLanguage.code === lang.code
-                        ? 'bg-blue-600 border-blue-600 text-white'
-                        : 'bg-slate-700/50 border-slate-600 text-white hover:bg-slate-600/50'
-                    }`}
+                    className={`p-3 sm:p-4 rounded-xl border-2 transition-all duration-200 ${currentLanguage.code === lang.code
+                      ? 'bg-blue-600 border-blue-600 text-white'
+                      : 'bg-slate-700/50 border-slate-600 text-white hover:bg-slate-600/50'
+                      }`}
                   >
                     <div className="text-center">
                       <div className="text-sm sm:text-base lg:text-lg font-semibold mb-1">{lang.name}</div>
@@ -385,24 +381,24 @@ export default function DashboardPage() {
                 <span className="text-sm sm:text-base lg:text-lg">{t('continue')} {t('lessons')}</span>
                 <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`} />
               </Link>
-              
-        <Link
-          href="/lessons"
-          className={`bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-4 sm:py-5 lg:py-6 px-4 sm:px-6 lg:px-8 rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center justify-center ${isRTL ? 'space-x-reverse space-x-2 sm:space-x-3' : 'space-x-2 sm:space-x-3'} shadow-lg hover:shadow-xl group`}
-        >
-          <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
-          <span className="text-sm sm:text-base lg:text-lg">Interactive Lessons</span>
-          <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`} />
-        </Link>
-        
-        <Link
-          href="/lesson-ai-coach"
-          className={`bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-4 sm:py-5 lg:py-6 px-4 sm:px-6 lg:px-8 rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center justify-center ${isRTL ? 'space-x-reverse space-x-2 sm:space-x-3' : 'space-x-2 sm:space-x-3'} shadow-lg hover:shadow-xl group`}
-        >
-          <Brain className="w-5 h-5 sm:w-6 sm:h-6" />
-          <span className="text-sm sm:text-base lg:text-lg">Lesson & AI Coach</span>
-          <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`} />
-        </Link>
+
+              <Link
+                href="/lessons"
+                className={`bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-4 sm:py-5 lg:py-6 px-4 sm:px-6 lg:px-8 rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center justify-center ${isRTL ? 'space-x-reverse space-x-2 sm:space-x-3' : 'space-x-2 sm:space-x-3'} shadow-lg hover:shadow-xl group`}
+              >
+                <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
+                <span className="text-sm sm:text-base lg:text-lg">Interactive Lessons</span>
+                <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`} />
+              </Link>
+
+              <Link
+                href="/lesson-ai-coach"
+                className={`bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-4 sm:py-5 lg:py-6 px-4 sm:px-6 lg:px-8 rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center justify-center ${isRTL ? 'space-x-reverse space-x-2 sm:space-x-3' : 'space-x-2 sm:space-x-3'} shadow-lg hover:shadow-xl group`}
+              >
+                <Brain className="w-5 h-5 sm:w-6 sm:h-6" />
+                <span className="text-sm sm:text-base lg:text-lg">Lesson & AI Coach</span>
+                <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`} />
+              </Link>
             </div>
 
             {/* Quick Stats Grid */}
@@ -477,12 +473,12 @@ export default function DashboardPage() {
             </div>
           </div>
         </main>
-        
+
         {/* Bottom Navigation - Fixed */}
         <div className="flex-shrink-0">
           <BottomNavigation />
         </div>
-        
+
         {/* Dashboard Notification Popup */}
         {currentNotification && (
           <DashboardNotificationPopup
@@ -493,13 +489,13 @@ export default function DashboardPage() {
             type={currentNotification.type}
           />
         )}
-        
+
         {/* Settings Modal */}
         <SettingsModal
           isOpen={showSettingsModal}
           onClose={() => setShowSettingsModal(false)}
         />
-        
+
       </div>
     </ProtectedRoute>
   );
