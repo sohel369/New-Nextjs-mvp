@@ -33,6 +33,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { NotificationBell } from '../components/NotificationBell';
 import BottomNavigation from '../components/BottomNavigation';
 import { useRouter } from 'next/navigation';
+import DashboardSkeleton from '../components/DashboardSkeleton';
 
 export default function Home() {
   const { user, loading, authChecked } = useAuth();
@@ -135,14 +136,7 @@ export default function Home() {
   // Always show the same loading state on both server and client until mounted
   // This ensures perfect hydration matching - use fixed classes (no responsive) for initial render
   if (!mounted || loading || !authChecked) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Loading...</p>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   // After mount, check if we should redirect (client-side only)
@@ -158,14 +152,7 @@ export default function Home() {
       // The landing page will be shown below when !user check passes
     } else if (authChecked && user && !preventRedirect) {
       // Show redirecting state - useEffect will handle the actual redirect
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-white text-lg">Redirecting to dashboard...</p>
-          </div>
-        </div>
-      );
+      return <DashboardSkeleton />;
     }
   }
 

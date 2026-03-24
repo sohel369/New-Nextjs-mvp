@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { Loader2, AlertCircle } from 'lucide-react';
+import DashboardSkeleton from './DashboardSkeleton';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -125,28 +126,14 @@ export default function ProtectedRoute({
     }
   }, [user, authChecked, router, redirectTo, requireAuth, hasCheckedOffline, hasCheckedSession]);
 
-  // Show loading state only if auth hasn't been checked yet
+  // Show skeleton instead of spinner for better UX
   if (!authChecked) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Checking authentication...</p>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
-  // Show loading state while redirecting
+  // Show skeleton while redirecting
   if (isRedirecting) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Redirecting...</p>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   // Check if user is logging out (don't show auth required screen during logout)

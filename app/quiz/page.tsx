@@ -18,7 +18,7 @@ export default function QuizPage() {
   const { user } = useAuth();
   const { currentLanguage, isRTL } = useLanguage();
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [globalLanguage, setGlobalLanguage] = useState('english');
   const [quizStarted, setQuizStarted] = useState(false);
   const [quizType, setQuizType] = useState('enhanced');
@@ -63,7 +63,7 @@ export default function QuizPage() {
     // 🧩 Wrap async Firestore call in safe async function
     try {
       if (!mounted) return;
-      setLoading(true);
+      // Fetching language preferences silently in background
 
       const docRef = doc(db, 'profiles', user.id);
       const docSnap = await getDoc(docRef);
@@ -204,11 +204,8 @@ export default function QuizPage() {
             </div>
           </div>
 
-          {loading ? (
-            <div className="flex-1 flex items-center justify-center min-h-[400px]">
-              <QuizLoadingSpinner message="Preloading Quiz Content..." size="lg" />
-            </div>
-          ) : (
+          {/* Quiz Content always visible for instant loading */}
+          <div className={`${loading ? 'opacity-50 pointer-events-none' : 'opacity-100'} transition-opacity duration-300`}>
             <>
               {/* Quiz Challenge Header */}
           <div className="mb-6 sm:mb-8">
@@ -317,7 +314,7 @@ export default function QuizPage() {
                 </Suspense>
               </div>
             </>
-          )}
+          </div>
         </div>
         <BottomNavigation />
       </div>

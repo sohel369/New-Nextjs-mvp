@@ -23,6 +23,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useSettings, UserSettings } from '../contexts/SettingsContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { languages } from '../contexts/LanguageContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -156,295 +157,242 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
 
           {/* Content */}
-          <div className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto">
-            {activeTab === 'general' && (
-              <div className="space-y-4 sm:space-y-6">
-                <h3 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">General Settings</h3>
-                
-                {/* Language Selection */}
-                <div className="space-y-3">
-                  <label className="block text-white font-medium text-sm sm:text-base">Language</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                    {languages.map((lang) => (
-                      <button
-                        key={lang.code}
-                        onClick={() => handleLanguageChange(lang.code)}
-                        className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 transition-all duration-200 ${
-                          settings?.interface_language === lang.code
-                            ? 'bg-blue-600 border-blue-600 text-white'
-                            : 'bg-slate-700/50 border-slate-600 text-white hover:bg-slate-600/50'
-                        }`}
-                      >
-                        <div className="text-center">
-                          <div className="text-sm sm:text-base lg:text-lg font-semibold mb-1">{lang.name}</div>
-                          <div className="text-xs sm:text-sm text-white/80">{lang.native}</div>
-                        </div>
-                      </button>
-                    ))}
+          <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto bg-slate-900/30">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {activeTab === 'general' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <Globe className="w-6 h-6 text-blue-400" />
+                      <h3 className="text-xl font-bold text-white">General Settings</h3>
+                    </div>
+                    
+                    {/* Language Selection */}
+                    <div className="space-y-4">
+                      <label className="block text-slate-300 font-medium">Interface Language</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {languages.map((lang) => (
+                          <button
+                            key={lang.code}
+                            onClick={() => handleLanguageChange(lang.code)}
+                            className={`p-4 rounded-xl border-2 transition-all duration-300 flex items-center justify-between group ${
+                              settings?.interface_language === lang.code
+                                ? 'bg-blue-600/20 border-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.3)]'
+                                : 'bg-slate-800/50 border-white/5 text-slate-400 hover:border-white/10 hover:bg-slate-800/80 hover:text-white'
+                            }`}
+                          >
+                            <div className="flex flex-col items-start">
+                              <span className="font-bold">{lang.name}</span>
+                              <span className="text-xs opacity-60 font-medium">{lang.native}</span>
+                            </div>
+                            <span className="text-2xl group-hover:scale-110 transition-transform">{lang.flag}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                )}
 
-            {activeTab === 'appearance' && (
-              <div className="space-y-4 sm:space-y-6">
-                <h3 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">Appearance</h3>
-                
-                {/* Theme Selection */}
-                <div className="space-y-3">
-                  <label className="block text-white font-medium text-sm sm:text-base">Theme</label>
-                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                    {[
-                      { value: 'light', label: 'Light', icon: Sun },
-                      { value: 'dark', label: 'Dark', icon: Moon },
-                      { value: 'auto', label: 'Auto', icon: Palette },
-                    ].map((theme) => {
-                      const Icon = theme.icon;
-                      return (
+                {activeTab === 'appearance' && (
+                  <div className="space-y-8">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <Palette className="w-6 h-6 text-purple-400" />
+                      <h3 className="text-xl font-bold text-white">Appearance</h3>
+                    </div>
+                    
+                    {/* Theme Selection */}
+                    <div className="space-y-4">
+                      <label className="block text-slate-300 font-medium">Theme Mode</label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { value: 'light', label: 'Light', icon: Sun, color: 'text-orange-400' },
+                          { value: 'dark', label: 'Dark', icon: Moon, color: 'text-indigo-400' },
+                          { value: 'system', label: 'Auto', icon: Globe, color: 'text-emerald-400' },
+                        ].map((theme) => {
+                          const Icon = theme.icon;
+                          const isActive = settings?.theme === theme.value;
+                          return (
+                            <button
+                              key={theme.value}
+                              onClick={() => handleSettingChange('theme', theme.value)}
+                              className={`p-4 rounded-xl border-2 transition-all duration-300 flex flex-col items-center space-y-2 group ${
+                                isActive
+                                  ? 'bg-blue-500/20 border-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.2)]'
+                                  : 'bg-slate-800/50 border-white/5 text-slate-400 hover:border-white/10'
+                              }`}
+                            >
+                              <Icon className={`w-6 h-6 ${isActive ? theme.color : 'text-slate-500 group-hover:text-slate-300'}`} />
+                              <span className="font-bold text-sm tracking-wide">{theme.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Font Size Selection */}
+                    <div className="space-y-4">
+                      <label className="block text-slate-300 font-medium">Font Size</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { value: 'small', label: 'Small', icon: Type, size: 'text-sm' },
+                          { value: 'medium', label: 'Medium', icon: Type, size: 'text-base' },
+                        ].map((font) => {
+                          const Icon = font.icon;
+                          const isActive = settings?.font_size === font.value;
+                          return (
+                            <button
+                              key={font.value}
+                              onClick={() => handleSettingChange('font_size', font.value)}
+                              className={`p-4 rounded-xl border-2 transition-all duration-300 flex items-center justify-center space-x-3 group ${
+                                isActive
+                                  ? 'bg-pink-500/20 border-pink-500 text-white shadow-[0_0_15px_rgba(236,72,153,0.2)]'
+                                  : 'bg-slate-800/50 border-white/5 text-slate-400 hover:border-white/10'
+                              }`}
+                            >
+                              <Icon className={`w-5 h-5 ${isActive ? 'text-pink-400' : 'text-slate-500'}`} />
+                              <span className={`font-bold ${font.size}`}>{font.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'notifications' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <Bell className="w-6 h-6 text-yellow-400" />
+                      <h3 className="text-xl font-bold text-white">Notifications</h3>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {[
+                        { key: 'notifications_enabled', label: 'Enable Notifications', desc: 'Real-time learning alerts', icon: Bell },
+                        { key: 'sound_enabled', label: 'Sound Notifications', desc: 'Audio alerts for interactions', icon: Volume2 },
+                        { key: 'email_notifications', label: 'Email Updates', desc: 'Progress reports via email', icon: Save },
+                      ].map((item) => (
+                        <div key={item.key} className="flex items-center justify-between p-4 bg-slate-800/40 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-10 h-10 rounded-lg bg-slate-700/50 flex items-center justify-center">
+                              <item.icon className="w-5 h-5 text-slate-300" />
+                            </div>
+                            <div>
+                              <div className="text-white font-bold">{item.label}</div>
+                              <div className="text-slate-500 text-xs font-medium">{item.desc}</div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleSettingChange(item.key as keyof UserSettings, !settings?.[item.key as keyof UserSettings])}
+                            className={`w-14 h-7 rounded-full transition-all duration-500 relative ${
+                              settings?.[item.key as keyof UserSettings] ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]' : 'bg-slate-700'
+                            }`}
+                          >
+                            <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all duration-500 shadow-md ${
+                              settings?.[item.key as keyof UserSettings] ? 'right-1' : 'left-1'
+                            }`} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'privacy' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <Shield className="w-6 h-6 text-emerald-400" />
+                      <h3 className="text-xl font-bold text-white">Privacy & Security</h3>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-4 bg-slate-800/40 rounded-xl border border-white/5">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 rounded-lg bg-slate-700/50 flex items-center justify-center">
+                            <Eye className="w-5 h-5 text-slate-300" />
+                          </div>
+                          <div>
+                            <div className="text-white font-bold">Public Profile</div>
+                            <div className="text-slate-500 text-xs font-medium">Visible to other learners</div>
+                          </div>
+                        </div>
                         <button
-                          key={theme.value}
-                          onClick={() => handleSettingChange('theme', theme.value)}
-                          className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 transition-all duration-200 flex flex-col items-center space-y-1 sm:space-y-2 ${
-                            settings?.theme === theme.value
-                              ? 'bg-blue-600 border-blue-600 text-white'
-                              : 'bg-slate-700/50 border-slate-600 text-white hover:bg-slate-600/50'
+                          onClick={() => handleSettingChange('profile_visibility', 
+                            settings?.profile_visibility === 'public' ? 'private' : 'public'
+                          )}
+                          className={`w-14 h-7 rounded-full transition-all duration-500 relative ${
+                            settings?.profile_visibility === 'public' ? 'bg-emerald-600' : 'bg-slate-700'
                           }`}
                         >
-                          <Icon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
-                          <span className="font-medium text-xs sm:text-sm">{theme.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Font Size */}
-                <div className="space-y-3">
-                  <label className="block text-white font-medium text-sm sm:text-base">Font Size</label>
-                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                    {[
-                      { value: 'small', label: 'Small', size: 'text-sm' },
-                      { value: 'medium', label: 'Medium', size: 'text-base' },
-                      { value: 'large', label: 'Large', size: 'text-lg' },
-                    ].map((font) => (
-                      <button
-                        key={font.value}
-                        onClick={() => handleSettingChange('font_size', font.value)}
-                        className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 transition-all duration-200 ${
-                          settings?.font_size === font.value
-                            ? 'bg-blue-600 border-blue-600 text-white'
-                            : 'bg-slate-700/50 border-slate-600 text-white hover:bg-slate-600/50'
-                        }`}
-                      >
-                        <div className={`font-medium text-xs sm:text-sm ${font.size}`}>{font.label}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'notifications' && (
-              <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Notifications</h3>
-                
-                {/* Notification Toggles */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-slate-700/50 rounded-xl">
-                    <div className="flex items-center space-x-3">
-                      <Bell className="w-5 h-5 text-white" />
-                      <div>
-                        <div className="text-white font-medium">Enable Notifications</div>
-                        <div className="text-slate-400 text-sm">Receive app notifications</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleSettingChange('notifications_enabled', !settings?.notifications_enabled)}
-                      className={`w-12 h-6 rounded-full transition-colors ${
-                        settings?.notifications_enabled ? 'bg-blue-600' : 'bg-slate-600'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                        settings?.notifications_enabled ? 'translate-x-6' : 'translate-x-0.5'
-                      }`} />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-slate-700/50 rounded-xl">
-                    <div className="flex items-center space-x-3">
-                      <Volume2 className="w-5 h-5 text-white" />
-                      <div>
-                        <div className="text-white font-medium">Sound Notifications</div>
-                        <div className="text-slate-400 text-sm">Play sound for notifications</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleSettingChange('sound_enabled', !settings?.sound_enabled)}
-                      className={`w-12 h-6 rounded-full transition-colors ${
-                        settings?.sound_enabled ? 'bg-blue-600' : 'bg-slate-600'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                        settings?.sound_enabled ? 'translate-x-6' : 'translate-x-0.5'
-                      }`} />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-slate-700/50 rounded-xl">
-                    <div className="flex items-center space-x-3">
-                      <Bell className="w-5 h-5 text-white" />
-                      <div>
-                        <div className="text-white font-medium">Email Notifications</div>
-                        <div className="text-slate-400 text-sm">Receive email updates</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleSettingChange('email_notifications', !settings?.email_notifications)}
-                      className={`w-12 h-6 rounded-full transition-colors ${
-                        settings?.email_notifications ? 'bg-blue-600' : 'bg-slate-600'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                        settings?.email_notifications ? 'translate-x-6' : 'translate-x-0.5'
-                      }`} />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-slate-700/50 rounded-xl">
-                    <div className="flex items-center space-x-3">
-                      <Bell className="w-5 h-5 text-white" />
-                      <div>
-                        <div className="text-white font-medium">Push Notifications</div>
-                        <div className="text-slate-400 text-sm">Browser push notifications</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleSettingChange('push_notifications', !settings?.push_notifications)}
-                      className={`w-12 h-6 rounded-full transition-colors ${
-                        settings?.push_notifications ? 'bg-blue-600' : 'bg-slate-600'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                        settings?.push_notifications ? 'translate-x-6' : 'translate-x-0.5'
-                      }`} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'privacy' && (
-              <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Privacy & Security</h3>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-slate-700/50 rounded-xl">
-                    <div className="flex items-center space-x-3">
-                      <Eye className="w-5 h-5 text-white" />
-                      <div>
-                        <div className="text-white font-medium">Public Profile</div>
-                        <div className="text-slate-400 text-sm">Make your profile visible to other users</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleSettingChange('profile_visibility', 
-                        settings?.profile_visibility === 'public' ? 'private' : 'public'
-                      )}
-                      className={`w-12 h-6 rounded-full transition-colors ${
-                        settings?.profile_visibility === 'public' ? 'bg-blue-600' : 'bg-slate-600'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                        settings?.profile_visibility === 'public' ? 'translate-x-6' : 'translate-x-0.5'
-                      }`} />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-slate-700/50 rounded-xl">
-                    <div className="flex items-center space-x-3">
-                      <Trophy className="w-5 h-5 text-white" />
-                      <div>
-                        <div className="text-white font-medium">Show Progress</div>
-                        <div className="text-slate-400 text-sm">Display your learning progress publicly</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleSettingChange('show_progress', !settings?.show_progress)}
-                      className={`w-12 h-6 rounded-full transition-colors ${
-                        settings?.show_progress ? 'bg-blue-600' : 'bg-slate-600'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                        settings?.show_progress ? 'translate-x-6' : 'translate-x-0.5'
-                      }`} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'account' && (
-              <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Account Management</h3>
-                
-                {!showDeleteConfirm ? (
-                  <div className="space-y-4">
-                    <div className="p-6 bg-red-900/20 border border-red-500/30 rounded-xl">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <Trash2 className="w-6 h-6 text-red-400" />
-                        <h4 className="text-lg font-semibold text-red-400">Delete Account</h4>
-                      </div>
-                      <p className="text-slate-300 mb-4">
-                        This action cannot be undone. All your data, progress, and settings will be permanently deleted.
-                      </p>
-                      <button
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
-                      >
-                        Delete Account
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="p-6 bg-red-900/20 border border-red-500/30 rounded-xl">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <Trash2 className="w-6 h-6 text-red-400" />
-                        <h4 className="text-lg font-semibold text-red-400">Confirm Account Deletion</h4>
-                      </div>
-                      <p className="text-slate-300 mb-4">
-                        Type <strong className="text-red-400">DELETE</strong> to confirm account deletion:
-                      </p>
-                      <input
-                        type="text"
-                        value={deleteConfirmText}
-                        onChange={(e) => setDeleteConfirmText(e.target.value)}
-                        placeholder="Type DELETE to confirm"
-                        className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-red-500"
-                      />
-                      <div className="flex space-x-3 mt-4">
-                        <button
-                          onClick={handleDeleteAccount}
-                          disabled={deleteConfirmText !== 'DELETE'}
-                          className="bg-red-600 hover:bg-red-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors"
-                        >
-                          Confirm Delete
-                        </button>
-                        <button
-                          onClick={() => {
-                            setShowDeleteConfirm(false);
-                            setDeleteConfirmText('');
-                          }}
-                          className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg transition-colors"
-                        >
-                          Cancel
+                          <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all duration-500 ${
+                            settings?.profile_visibility === 'public' ? 'right-1' : 'left-1'
+                          }`} />
                         </button>
                       </div>
                     </div>
                   </div>
                 )}
-              </div>
-            )}
+
+                {activeTab === 'account' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <User className="w-6 h-6 text-pink-400" />
+                      <h3 className="text-xl font-bold text-white">Account Management</h3>
+                    </div>
+                    
+                    <div className="p-6 bg-red-500/5 border border-red-500/20 rounded-2xl">
+                      <h4 className="text-red-400 font-bold mb-2 flex items-center space-x-2">
+                        <Trash2 className="w-5 h-5" />
+                        <span>Dangerous Area</span>
+                      </h4>
+                      <p className="text-slate-400 text-sm mb-6 font-medium">
+                        Deleting your account will erase all your learning progress, XP, and personal settings. This action is permanent.
+                      </p>
+                      
+                      {!showDeleteConfirm ? (
+                        <button
+                          onClick={() => setShowDeleteConfirm(true)}
+                          className="w-full sm:w-auto px-6 py-3 bg-red-600/10 text-red-500 border border-red-500/30 rounded-xl font-bold hover:bg-red-600 hover:text-white transition-all duration-300"
+                        >
+                          Delete Account
+                        </button>
+                      ) : (
+                        <div className="space-y-4">
+                          <input
+                            type="text"
+                            value={deleteConfirmText}
+                            onChange={(e) => setDeleteConfirmText(e.target.value)}
+                            placeholder="Type DELETE to confirm"
+                            className="w-full p-4 bg-slate-900 border border-red-500/30 rounded-xl text-white font-bold placeholder-slate-600 focus:outline-none focus:border-red-500 transition-all"
+                          />
+                          <div className="flex space-x-3">
+                            <button
+                              onClick={handleDeleteAccount}
+                              disabled={deleteConfirmText !== 'DELETE'}
+                              className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold disabled:opacity-30 transition-all"
+                            >
+                              Confirm Delete
+                            </button>
+                            <button
+                              onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); }}
+                              className="px-6 py-3 bg-slate-800 text-white rounded-xl font-bold"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
 

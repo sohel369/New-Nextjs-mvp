@@ -27,10 +27,13 @@ import { languages } from '../../contexts/LanguageContext';
 import { NotificationBell } from '../../components/NotificationBell';
 import BottomNavigation from '../../components/BottomNavigation';
 import ProtectedRoute from '../../components/ProtectedRoute';
-import DashboardNotificationPopup from '../../components/DashboardNotificationPopup';
-import SettingsModal from '../../components/SettingsModal';
-import Layout from '../../components/Layout';
+import dynamic from 'next/dynamic';
 import { NotificationService } from '../../utils/notificationService';
+import DashboardSkeleton from '../../components/DashboardSkeleton';
+
+// Dynamically import heavy modal/popup components
+const DashboardNotificationPopup = dynamic(() => import('../../components/DashboardNotificationPopup'), { ssr: false });
+const SettingsModal = dynamic(() => import('../../components/SettingsModal'), { ssr: false });
 
 export default function DashboardPage() {
   const { user, loading, authChecked } = useAuth();
@@ -178,16 +181,9 @@ export default function DashboardPage() {
     };
   }, [user, authChecked, showNotification]);
 
-  // Show loading only if auth hasn't been checked yet
+  // Show skeleton instead of spinner for better UX
   if (!authChecked) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Loading dashboard...</p>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (

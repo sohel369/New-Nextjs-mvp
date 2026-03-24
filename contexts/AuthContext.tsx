@@ -33,7 +33,20 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    // Try to restore user from localStorage for instant loading
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('auth_user_cache');
+      if (cached) {
+        try {
+          return JSON.parse(cached);
+        } catch (e) {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
   const router = useRouter();
@@ -56,6 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         // User is signed out
         setUser(null);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('auth_user_cache');
+        }
         setLoading(false);
         setAuthChecked(true);
       }
@@ -88,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const unsubscribe = onSnapshot(docRef, async (docSnap) => {
         if (docSnap.exists()) {
           const profileData = docSnap.data();
-          setUser({
+          const userData = {
             id: firebaseUser.uid,
             email: firebaseUser.email || '',
             name: profileData.name || firebaseUser.displayName || 'Guest',
@@ -97,7 +113,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             streak: profileData.streak || 0,
             learning_language: profileData.learning_language || 'ar',
             native_language: profileData.native_language || 'en'
-          });
+          };
+          setUser(userData);
+          // Cache the user data
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('auth_user_cache', JSON.stringify(userData));
+          }
           setLoading(false);
           setAuthChecked(true);
         } else {
